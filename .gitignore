@@ -1,21 +1,44 @@
 # Next.js
 .next/
 out/
+build/
+dist/
 
 # Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Environment files
-.env*
+.env*.local
+.env
+.env.development
+.env.test
+.env.production
 !.env.example
 
-# Vitest / testing
+# Vitest / testing / coverage
 .vitest/
+coverage/
 
-# TypeScript build info
+# TypeScript build info and cache
 *.tsbuildinfo
+.turbo/
+.eslintcache
 
-# OS / Editor
+# OS / Editor / System
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 *.local
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AI / Agent workspace artifacts
+.agents/
+skills-lock.json
