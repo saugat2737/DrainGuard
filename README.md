@@ -7,8 +7,23 @@
 [![Next.js 14](https://img.shields.io/badge/Next.js-14.2-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Tests-40%20Passing-brightgreen?logo=vitest)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Tests-78%20Passing-brightgreen?logo=vitest)](https://vitest.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Docs](https://img.shields.io/badge/Documentation-Comprehensive%20System-6f42c1.svg)](./docs/README.md)
+
+---
+
+> 📖 **Comprehensive Technical Documentation & Academic Survey Available:**  
+> Explore the full research papers, architectural rationale, risk formulas, and operational guides in the [**Documentation Hub (`docs/README.md`)**](./docs/README.md).
+> - [Academic Literature Survey & Synthesis (`docs/LITERATURE_SURVEY.md`)](./docs/LITERATURE_SURVEY.md)
+> - [Related Work & Systematic Gap Analysis (`docs/RELATED_WORK_AND_GAP_ANALYSIS.md`)](./docs/RELATED_WORK_AND_GAP_ANALYSIS.md)
+> - [Mathematical Derivation of the Risk Engine (`docs/RISK_ENGINE.md`)](./docs/RISK_ENGINE.md)
+> - [System Architecture & Sequence Models (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)
+> - [Geospatial Data Catalog & Provenance (`docs/GEO_SPATIAL_DATA_CATALOG.md`)](./docs/GEO_SPATIAL_DATA_CATALOG.md)
+> - [Architecture Decision Records (ADRs 001–006)](./docs/architecture-decisions/)
+> - [End-to-End Requirements Traceability Matrix (`docs/REQUIREMENTS_TRACEABILITY.md`)](./docs/REQUIREMENTS_TRACEABILITY.md)
+> - [Test Strategy & Verification Pyramid (`docs/TEST_STRATEGY_AND_QA.md`)](./docs/TEST_STRATEGY_AND_QA.md)
+> - [Hackathon Demonstration & Pitch Guide (`docs/HACKATHON_DEMO_GUIDE.md`)](./docs/HACKATHON_DEMO_GUIDE.md)
 
 ---
 

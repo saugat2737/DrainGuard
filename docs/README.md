@@ -1,29 +1,30 @@
-# DrainGuard — Docs Index
+# DrainGuard Master Documentation Index
 
-> Street-level rain warnings for citizens + a ranked inspection queue for the municipality.
-> Hackathon theme: **Smart City and Urban Innovation** (IEEE SIT SB). Coding ends **10:00 AM, 25 Oct 2026**.
+## 1. Start Here
+- [`docs/PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md) — What DrainGuard is, dual-stakeholder value proposition, and 3-check evidence triad.
+- [`docs/HACKATHON_DEMO_GUIDE.md`](./HACKATHON_DEMO_GUIDE.md) — 3-minute pitch script and demonstration walkthrough.
+- [`docs/DEVELOPMENT_SETUP.md`](./DEVELOPMENT_SETUP.md) — Local installation, environment variables, and verification scripts.
 
-## Read order (humans and agents)
+---
 
-| # | File | Purpose |
-|---|------|---------|
-| 00 | `README.md` | This index |
-| 01 | `01_PROBLEM_STATEMENT.md` | Problem, users, why existing approaches fall short |
-| 02 | `02_PRD.md` | Scope, user stories, MVP, non-goals |
-| 03 | `03_ARCHITECTURE.md` | Stack, folder structure, data flow |
-| 04 | `04_DATA_MODEL.md` | Tables, types, seed data |
-| 05 | `05_RISK_ENGINE.md` | Risk formula and explanation format |
-| 06 | `06_API_SPEC.md` | API routes and contracts |
-| 07 | `07_UI_UX_SPEC.md` | Screens, components, design rules |
-| 08 | `08_AGENT_RULES.md` | Rules the Antigravity agent MUST follow |
-| 09 | `09_TASKS.md` | Phased task plan with checkboxes |
-| 10 | `10_AGENT_PROMPTS.md` | Copy-paste prompts, in order |
-| 11 | `11_TESTING.md` | Test plan and demo-day checks |
-| 12 | `12_DEMO_SCRIPT.md` | 2-minute demo + video script |
-| 13 | `13_SUBMISSION_CHECKLIST.md` | README, LinkedIn, form, final checks |
+## 2. Research & Academic Foundations
+- [`docs/LITERATURE_SURVEY.md`](./LITERATURE_SURVEY.md) — Academic survey synthesizing 13 research themes across urban hydrology, VGI, and risk routing.
+- [`docs/RELATED_WORK_AND_GAP_ANALYSIS.md`](./RELATED_WORK_AND_GAP_ANALYSIS.md) — Comparison against Google Maps, SWMM, CPGRAMS, and smart city dashboards.
+- [`docs/REFERENCES.md`](./REFERENCES.md) — Verified academic bibliography with DOIs and primary provider documentation.
 
-## One-line pitch
-"DrainGuard tells you which streets will flood before you get there, and tells the city which drains to clear first."
+---
 
-## Golden rule
-One exceptional core workflow, polished. No half-finished extras.
+## 3. Architecture & Design Rationale
+- [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) — System context, C4 container model, sequence diagrams, and technology trade-offs.
+- [`docs/architecture-decisions/`](./architecture-decisions/README.md) — Formal Architecture Decision Records (ADR-001 through ADR-006).
+- [`docs/RISK_ENGINE.md`](./RISK_ENGINE.md) — 4-factor deterministic risk formula, LaTeX derivations, and worked examples.
+- [`docs/GEO_SPATIAL_DATA_CATALOG.md`](./GEO_SPATIAL_DATA_CATALOG.md) — Grounded flood zones, DEM elevation references, and provenance registry.
+- [`docs/API_REFERENCE.md`](./API_REFERENCE.md) — REST API specifications, request/response schemas, and status codes.
+- [`docs/ZERO_COST_AND_LICENSING.md`](./ZERO_COST_AND_LICENSING.md) — Zero-paid-API policy, open-data licensing, and self-hosting roadmap.
+
+---
+
+## 4. Quality Assurance & Evaluation
+- [`docs/TEST_STRATEGY_AND_QA.md`](./TEST_STRATEGY_AND_QA.md) — Automated test coverage matrix, performance telemetry, and safeguards.
+- [`docs/LIMITATIONS_AND_FUTURE_WORK.md`](./LIMITATIONS_AND_FUTURE_WORK.md) — Honest disclosure of technical limitations and future research avenues.
+- [`docs/REQUIREMENTS_TRACEABILITY.md`](./REQUIREMENTS_TRACEABILITY.md) — End-to-end matrix connecting problems, requirements, code, and tests.
