@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="favicon-title"><title id="favicon-title">DrainGuard favicon</title><rect width="64" height="64" rx="14" fill="#0B1220"/>
+<g transform="translate(5.5 5.5) scale(0.552)" stroke-linecap="round" stroke-linejoin="round">
+<path d="M48 9 C38 22 22 40 22 57 C22 73 33 85 48 85 C63 85 74 73 74 57 C74 40 58 22 48 9 Z" fill="none" stroke="#20D6C2" stroke-width="7"/>
+<path d="M43 31 V70 M43 32 H52 C63 32 68 40 68 50 C68 61 62 69 52 69 H43" fill="none" stroke="#20D6C2" stroke-width="6"/>
+<path d="M27 44 H38 M26 57 H38" fill="none" stroke="#38BDF8" stroke-width="5"/>
+</g></svg>

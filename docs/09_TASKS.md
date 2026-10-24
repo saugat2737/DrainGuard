@@ -13,13 +13,13 @@ Time budget: 6 PM (24 Oct) → 10 AM (25 Oct). Submit by 9 AM latest. Tick boxes
 - [x] `types.ts` per data model
 - [x] `zones.seed.json` and `reports.seed.json` (simulated, labeled)
 - [x] `risk.ts` + unit tests
-- [ ] `/api/weather`, `/api/zones`, `/api/inspections`
+- [x] `/api/weather`, `/api/zones`, `/api/inspections`
 
 ## Phase 2 — Map + explanation (9:00 PM–12:00 AM)
-- [ ] `MapView` with colored zones and legend
-- [ ] `RainSlider` (live forecast + simulation), debounce
-- [ ] `ZonePanel` with factor bars and explanation text
-- [ ] Simulated-data badge and top bar
+- [x] `MapView` with colored zones and legend
+- [x] `RainSlider` (live forecast + simulation), debounce
+- [x] `ZonePanel` with factor bars and explanation text
+- [x] Simulated-data badge and top bar
 
 ## Phase 3 — Reports + AI (12:00–2:00 AM)
 - [ ] `/api/analyze` with Gemini + mock fallback

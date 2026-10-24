@@ -1,3 +1,98 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* DrainGuard Official Brand Design Tokens */
+:root {
+  --dg-midnight-ink: #0B1220;
+  --dg-deep-harbor: #142235;
+  --dg-electric-aqua: #20D6C2;
+  --dg-rain-cyan: #38BDF8;
+  --dg-cloud-white: #F8FAFC;
+  --dg-urban-mist: #E2E8F0;
+  --dg-slate: #64748B;
+
+  /* Official Operational Risk Colors (docs/07_UI_UX_SPEC.md & Brand Kit) */
+  --dg-risk-low: #34D399;       /* Green */
+  --dg-risk-medium: #F5B942;    /* Amber / Elevated */
+  --dg-risk-high: #FB7185;      /* Orange-Rose / High */
+  --dg-risk-severe: #EF4444;    /* Red / Critical */
+
+  --dg-bg: var(--dg-midnight-ink);
+  --dg-surface: var(--dg-deep-harbor);
+  --dg-surface-glass: rgba(20, 34, 53, 0.85);
+  --dg-border: rgba(51, 65, 85, 0.7);
+  --dg-focus-ring: var(--dg-electric-aqua);
+}
+
+body {
+  background-color: var(--dg-midnight-ink);
+  color: var(--dg-cloud-white);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "tnum" on, "zero" on;
+}
+
+/* Custom Leaflet Map Dark Inversion with Hydro Cartography */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background-color: #0B1220 !important;
+  font-family: inherit;
+}
+
+.leaflet-tile {
+  filter: brightness(0.68) invert(1) contrast(3.1) hue-rotate(200deg) saturate(0.4) brightness(0.72);
+}
+
+.leaflet-control-zoom {
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  background: rgba(20, 34, 53, 0.9) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(20, 34, 53, 0.95) !important;
+  color: #F8FAFC !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  transition: background 150ms ease;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #1e324d !important;
+  color: #38BDF8 !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(11, 18, 32, 0.85) !important;
+  color: #64748B !important;
+  font-size: 10px !important;
+  padding: 3px 8px !important;
+  border-top-left-radius: 6px;
+}
+
+.leaflet-control-attribution a {
+  color: #38BDF8 !important;
+}
+
+/* Smooth color transitions for interactive polygons */
+path.leaflet-interactive {
+  transition: stroke 300ms ease, fill 300ms ease, fill-opacity 300ms ease, stroke-width 200ms ease;
+  outline: none;
+}
+
+/* Focus styles */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--dg-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  path.leaflet-interactive, * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
