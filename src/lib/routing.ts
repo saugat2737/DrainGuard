@@ -1,6 +1,7 @@
 import * as turf from "@turf/turf";
 import { Zone, ZoneRisk } from "./types";
 import { AntecedentRainfall } from "./weather";
+import { osrmRouteCache } from "./cache/instances";
 
 export interface LatLng {
   lat: number;
@@ -247,44 +248,56 @@ export function scoreRoute(
 }
 
 /**
- * Fetch routes from OSRM public routing API with alternatives=true and 8s timeout
+ * Fetch routes from OSRM public routing API with alternatives=true and 8s timeout.
+ * Cached centrally via osrmRouteCache with request deduplication to prevent slamming public servers.
  */
 export async function fetchOSRMAlternatives(
   origin: LatLng,
   destination: LatLng,
   fetchFn: typeof fetch = fetch
 ): Promise<{ coordinates: [number, number][]; duration: number; distance: number }[]> {
-  const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&alternatives=true`;
+  const cacheKey = `osrm:${origin.lng.toFixed(5)},${origin.lat.toFixed(5)}:${destination.lng.toFixed(5)},${destination.lat.toFixed(5)}`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const result = await osrmRouteCache.getOrLoad(
+    cacheKey,
+    async () => {
+      const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&alternatives=true`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  try {
-    const response = await fetchFn(url, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
+      try {
+        const response = await fetchFn(url, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
 
-    clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`OSRM HTTP error: ${response.status}`);
-    }
+        if (!response.ok) {
+          throw new Error(`OSRM HTTP error: ${response.status}`);
+        }
 
-    const data = await response.json();
-    if (!data.routes || !Array.isArray(data.routes) || data.routes.length === 0) {
-      throw new Error("No navigable routes found by OSRM.");
-    }
+        const data = await response.json();
+        if (!data.routes || !Array.isArray(data.routes) || data.routes.length === 0) {
+          throw new Error("No navigable routes found by OSRM.");
+        }
 
-    return data.routes.map((r: any) => ({
-      coordinates: r.geometry.coordinates as [number, number][],
-      duration: r.duration,
-      distance: r.distance,
-    }));
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+        const mapped = data.routes.map((r: any) => ({
+          coordinates: r.geometry.coordinates as [number, number][],
+          duration: r.duration,
+          distance: r.distance,
+        }));
+
+        return { value: mapped, source: "osrm_upstream" };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    },
+    true // allowStaleOnError
+  );
+
+  return result.data;
 }
 
 /**

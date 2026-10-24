@@ -2,18 +2,42 @@ import { Report, Zone } from "./types";
 import seedReportsData from "@/data/reports.seed.json";
 import * as turf from "@turf/turf";
 
-// In-memory reports store initialized from seed data
-let runtimeReports: Report[] = [
-  ...(seedReportsData.reports as unknown as Report[]),
-];
+/**
+ * Production-Hardened Citizen Report Store
+ *
+ * PRODUCTION DATA POLICY:
+ * In live production environments (`ENABLE_DEMO_REPORTS !== "true"` and `NODE_ENV === "production"`),
+ * the store initializes completely clean with 0 synthetic seed reports.
+ * Simulated or demonstration reports are strictly opt-in development fixtures.
+ */
+
+function isDemoModeEnabled(): boolean {
+  // In production, demo reports are disabled by default
+  if (process.env.NODE_ENV === "production") {
+    return process.env.ENABLE_DEMO_REPORTS === "true";
+  }
+  // In test and development environments, demo seed fixtures are enabled by default for QA continuity
+  return process.env.DISABLE_DEMO_REPORTS !== "true";
+}
+
+let runtimeReports: Report[] = isDemoModeEnabled()
+  ? [...(seedReportsData.reports as unknown as Report[])]
+  : [];
 
 /**
- * Reset store to initial seed reports (for testing)
+ * Reset store (supports explicit fixture loading for test suites)
  */
-export function resetReportsStore(): void {
-  runtimeReports = [
-    ...(seedReportsData.reports as unknown as Report[]),
-  ];
+export function resetReportsStore(includeDemoSeeds = isDemoModeEnabled()): void {
+  runtimeReports = includeDemoSeeds
+    ? [...(seedReportsData.reports as unknown as Report[])]
+    : [];
+}
+
+/**
+ * Load seed demo fixtures explicitly (for QA test suites)
+ */
+export function loadSeedReports(): void {
+  runtimeReports = [...(seedReportsData.reports as unknown as Report[])];
 }
 
 /**
@@ -79,14 +103,21 @@ export function addReport(report: Report): void {
 }
 
 /**
- * Update report status (e.g., Open -> Assigned -> Cleared)
+ * Retrieve report by ID
  */
-export function updateReportStatus(reportId: string, status: "open" | "assigned" | "cleared"): Report | null {
-  const index = runtimeReports.findIndex((r) => r.id === reportId);
-  if (index === -1) return null;
-  runtimeReports[index] = {
-    ...runtimeReports[index],
-    status,
-  };
-  return runtimeReports[index];
+export function getReportById(id: string): Report | null {
+  return runtimeReports.find((r) => r.id === id) || null;
+}
+
+/**
+ * Update report status (e.g. municipal dispatch: open -> assigned -> in_progress -> resolved)
+ */
+export function updateReportStatus(
+  id: string,
+  newStatus: Report["status"]
+): Report | null {
+  const report = runtimeReports.find((r) => r.id === id);
+  if (!report) return null;
+  report.status = newStatus;
+  return report;
 }
