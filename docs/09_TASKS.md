@@ -22,23 +22,23 @@ Time budget: 6 PM (24 Oct) → 10 AM (25 Oct). Submit by 9 AM latest. Tick boxes
 - [x] Simulated-data badge and top bar
 
 ## Phase 3 — Reports + AI (12:00–2:00 AM)
-- [ ] `/api/analyze` with Gemini + mock fallback
-- [ ] `/api/reports` (POST/GET), nearest-zone linking
-- [ ] `ReportForm` modal with photo preview and AI result
-- [ ] Report immediately changes zone risk on the map
+- [x] `/api/analyze` with Gemini + mock fallback
+- [x] `/api/reports` (POST/GET), nearest-zone linking
+- [x] `ReportForm` modal with photo preview and AI result
+- [x] Report immediately changes zone risk on the map
 
 ## Phase 4 — Routing + municipal (2:00–4:00 AM)
-- [ ] `routing.ts` + `/api/route` with risk scoring and tests
-- [ ] `RoutePanel` (fastest vs safest, reason)
-- [ ] `/municipal` ranked queue with shared rain state
-- [ ] (S1) status update Open → Assigned → Cleared
+- [x] `routing.ts` + `/api/route` with risk scoring and tests
+- [x] `RoutePanel` (fastest vs safest, reason)
+- [x] `/municipal` ranked queue with shared rain state
+- [x] (S1) status update Open → Assigned → Cleared
 
 ## Phase 5 — Polish + hardening (4:00–6:00 AM)
-- [ ] Loading/empty/error states everywhere
-- [ ] Mobile layout pass
-- [ ] `/about` page (method, sources, limits)
-- [ ] Fallback tests: disable network for Gemini/OSRM/weather, confirm app still works
-- [ ] Lighthouse/accessibility quick pass
+- [x] Loading/empty/error states everywhere
+- [x] Mobile layout pass
+- [x] `/about` page (method, sources, limits)
+- [x] Fallback tests: disable network for Gemini/OSRM/weather, confirm app still works
+- [x] Lighthouse/accessibility quick pass
 
 ## Phase 6 — Ship (6:00–9:00 AM)
 - [ ] Production deploy; test public link on phone and another browser

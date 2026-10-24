@@ -11,6 +11,8 @@ interface MapWrapperProps {
   onSelectZone: (zone: Zone & { risk: ZoneRisk }) => void;
   center?: [number, number];
   zoom?: number;
+  routeGeometry?: [number, number][] | null;
+  routeType?: "fastest" | "safest";
 }
 
 // Client-only dynamic import with SSR disabled to prevent Leaflet window errors

@@ -5,8 +5,12 @@ import { Header } from "@/components/Header";
 import { RainSlider } from "@/components/RainSlider";
 import { ZonePanel } from "@/components/ZonePanel";
 import { MapWrapper } from "@/components/MapWrapper";
+import { ReportForm } from "@/components/ReportForm";
+import { RoutePanel } from "@/components/RoutePanel";
 import { Zone, ZoneRisk } from "@/lib/types";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { RouteComparisonResult } from "@/lib/routing";
+import { AlertCircle, RefreshCw, LayoutDashboard } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   const [forecastRain, setForecastRain] = useState<number>(0);
@@ -19,6 +23,11 @@ export default function HomePage() {
   const [isZonesLoading, setIsZonesLoading] = useState<boolean>(true);
   const [isUpdatingRisk, setIsUpdatingRisk] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+
+  // Routing state
+  const [routeResult, setRouteResult] = useState<RouteComparisonResult | null>(null);
+  const [activeDisplayRoute, setActiveDisplayRoute] = useState<"fastest" | "safest">("safest");
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeRequestIdRef = useRef<number>(0);
@@ -136,16 +145,29 @@ export default function HomePage() {
             className="lg:col-span-8 flex flex-col space-y-3 h-[50vh] lg:h-auto min-h-[440px] relative"
           >
             {/* Embedded Floating Rain Control on Desktop / Pinned on Mobile */}
-            <div className="z-10 w-full">
-              <RainSlider
-                currentRain={currentRain}
-                forecastRain={forecastRain}
-                peakHour={peakHour}
-                isWeatherLoading={isWeatherLoading}
-                isUpdatingRisk={isUpdatingRisk}
-                onRainChange={handleRainChange}
-                onReset={handleResetToForecast}
-              />
+            <div className="z-10 w-full flex flex-col md:flex-row gap-3">
+              <div className="flex-1">
+                <RainSlider
+                  currentRain={currentRain}
+                  forecastRain={forecastRain}
+                  peakHour={peakHour}
+                  isWeatherLoading={isWeatherLoading}
+                  isUpdatingRisk={isUpdatingRisk}
+                  onRainChange={handleRainChange}
+                  onReset={handleResetToForecast}
+                />
+              </div>
+
+              {/* Quick Link to Municipal Dashboard with synchronized rain state */}
+              <div className="shrink-0 flex items-center">
+                <Link
+                  href={`/municipal?rain_mm=${Math.round(currentRain)}`}
+                  className="w-full md:w-auto h-full px-4 py-3 rounded-xl bg-[#142235]/95 border border-slate-700/60 hover:border-[#38BDF8] text-xs font-semibold text-slate-200 hover:text-white flex items-center justify-center gap-2 transition shadow-lg group"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-[#38BDF8] group-hover:scale-110 transition-transform" />
+                  <span>Municipal View →</span>
+                </Link>
+              </div>
             </div>
 
             {/* Map Canvas */}
@@ -162,22 +184,64 @@ export default function HomePage() {
                   onSelectZone={(z) => setSelectedZoneId(z.id)}
                   center={[13.3392, 77.1140]}
                   zoom={14}
+                  routeGeometry={
+                    routeResult
+                      ? activeDisplayRoute === "safest"
+                        ? routeResult.safest.geometry.coordinates
+                        : routeResult.fastest.geometry.coordinates
+                      : null
+                  }
+                  routeType={activeDisplayRoute}
                 />
               )}
             </div>
           </section>
 
-          {/* Detailed Risk Explanation Panel (4 Cols on Desktop) */}
+          {/* Detailed Risk Explanation & Routing Panel (4 Cols on Desktop) */}
           <aside
-            aria-label="Selected Zone Intelligence"
-            className="lg:col-span-4 h-full overflow-y-auto"
+            aria-label="Selected Zone Intelligence & Safe Routing"
+            className="lg:col-span-4 h-full overflow-y-auto space-y-4"
           >
+            <RoutePanel
+              currentRain={currentRain}
+              onRoutesCalculated={(res) => setRouteResult(res)}
+              onSelectRouteDisplay={(type) => setActiveDisplayRoute(type)}
+              activeDisplayRoute={activeDisplayRoute}
+            />
+
             <ZonePanel
               selectedZone={selectedZone}
               currentRain={currentRain}
+              onOpenReportModal={() => setIsReportModalOpen(true)}
             />
           </aside>
         </main>
+      )}
+
+      {/* Citizen Blockage Report Modal */}
+      {isReportModalOpen && (
+        <ReportForm
+          zones={zones}
+          selectedZone={selectedZone}
+          onClose={() => setIsReportModalOpen(false)}
+          onReportSubmitted={async (matchedZoneId) => {
+            // Trigger refresh of zones with current simulated rain
+            try {
+              const res = await fetch(`/api/zones?rain_mm=${currentRain}`);
+              if (res.ok) {
+                const json = await res.json();
+                if (json.data?.zones) {
+                  setZones(json.data.zones);
+                  if (matchedZoneId) {
+                    setSelectedZoneId(matchedZoneId);
+                  }
+                }
+              }
+            } catch {
+              // Silently handle
+            }
+          }}
+        />
       )}
     </div>
   );

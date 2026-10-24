@@ -70,7 +70,7 @@ export function calculateBlockageFactor(reports: Report[]): {
   return {
     factor,
     effectiveReportsCount: activeCount,
-    blockageTypes: Array.from(typesSet),
+    blockageTypes: Array.from(typesSet).sort(),
   };
 }
 

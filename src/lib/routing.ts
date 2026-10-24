@@ -1,0 +1,227 @@
+import * as turf from "@turf/turf";
+import { Zone, ZoneRisk } from "./types";
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+export interface RouteGeometry {
+  type: "LineString";
+  coordinates: [number, number][]; // [lng, lat]
+}
+
+export interface ScoredRoute {
+  geometry: RouteGeometry;
+  duration_s: number;
+  distance_m: number;
+  risk_score: number; // 0..100
+  zones_crossed: string[];
+}
+
+export interface RouteComparisonResult {
+  fastest: ScoredRoute;
+  safest: ScoredRoute;
+  recommendation: "safest" | "fastest";
+  reason: string;
+}
+
+/**
+ * Score a single route geometry against current zone risks per docs/05_RISK_ENGINE.md:
+ * - Buffer the route line by 30 m (0.03 km).
+ * - Sum score of zones it intersects weighted by intersection length.
+ * - Normalize to 0..100.
+ */
+export function scoreRoute(
+  routeCoords: [number, number][],
+  duration_s: number,
+  distance_m: number,
+  zonesWithRisk: (Zone & { risk: ZoneRisk })[]
+): ScoredRoute {
+  if (routeCoords.length < 2) {
+    return {
+      geometry: { type: "LineString", coordinates: routeCoords },
+      duration_s,
+      distance_m,
+      risk_score: 0,
+      zones_crossed: [],
+    };
+  }
+
+  const routeLine = turf.lineString(routeCoords);
+  const totalLengthKm = turf.length(routeLine, { units: "kilometers" });
+
+  if (totalLengthKm <= 0) {
+    return {
+      geometry: { type: "LineString", coordinates: routeCoords },
+      duration_s,
+      distance_m,
+      risk_score: 0,
+      zones_crossed: [],
+    };
+  }
+
+  // 30m buffer around route line (0.03 km)
+  const routeBuffer = turf.buffer(routeLine, 0.03, { units: "kilometers" });
+
+  const zonesCrossedSet = new Set<string>();
+  let weightedRiskSum = 0;
+  let intersectedLengthKm = 0;
+
+  for (const zone of zonesWithRisk) {
+    try {
+      let zonePoly: any = null;
+      if (zone.geometry.type === "Polygon") {
+        zonePoly = turf.polygon(zone.geometry.coordinates);
+      } else if (zone.geometry.type === "LineString") {
+        // Buffer zone line string by 25m to evaluate corridor intersection
+        zonePoly = turf.buffer(turf.lineString(zone.geometry.coordinates), 0.025, {
+          units: "kilometers",
+        });
+      }
+
+      if (zonePoly && routeBuffer) {
+        const intersection = turf.intersect(
+          turf.featureCollection([routeBuffer, zonePoly])
+        );
+
+        if (intersection) {
+          zonesCrossedSet.add(zone.id);
+
+          // Estimate length of route intersecting this zone
+          const lineIntersect = turf.lineSplit(routeLine, zonePoly);
+          let segLength = 0;
+          if (lineIntersect && lineIntersect.features.length > 0) {
+            for (const feat of lineIntersect.features) {
+              const midPt = turf.along(feat, turf.length(feat) / 2);
+              if (turf.booleanPointInPolygon(midPt, zonePoly)) {
+                segLength += turf.length(feat, { units: "kilometers" });
+              }
+            }
+          }
+
+          if (segLength === 0) {
+            // Fallback to proportional overlap if split didn't isolate a segment
+            segLength = Math.min(totalLengthKm, 0.25);
+          }
+
+          weightedRiskSum += zone.risk.score * segLength;
+          intersectedLengthKm += segLength;
+        }
+      }
+    } catch {
+      // Continue scoring other zones safely
+    }
+  }
+
+  // Compute final normalized route risk score (0..100)
+  let routeRiskScore = 0;
+  if (totalLengthKm > 0 && intersectedLengthKm > 0) {
+    routeRiskScore = Math.min(
+      100,
+      Math.round((weightedRiskSum / totalLengthKm))
+    );
+  }
+
+  return {
+    geometry: { type: "LineString", coordinates: routeCoords },
+    duration_s: Math.round(duration_s),
+    distance_m: Math.round(distance_m),
+    risk_score: routeRiskScore,
+    zones_crossed: Array.from(zonesCrossedSet),
+  };
+}
+
+/**
+ * Fetch routes from OSRM public routing API with alternatives=true and 8s timeout
+ */
+export async function fetchOSRMAlternatives(
+  origin: LatLng,
+  destination: LatLng,
+  fetchFn: typeof fetch = fetch
+): Promise<{ coordinates: [number, number][]; duration: number; distance: number }[]> {
+  const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&alternatives=true`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetchFn(url, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`OSRM HTTP error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.routes || !Array.isArray(data.routes) || data.routes.length === 0) {
+      throw new Error("No navigable routes found by OSRM.");
+    }
+
+    return data.routes.map((r: any) => ({
+      coordinates: r.geometry.coordinates as [number, number][],
+      duration: r.duration,
+      distance: r.distance,
+    }));
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Compare fastest vs safest routes per docs/05_RISK_ENGINE.md:
+ * - Pick fastest (min duration).
+ * - Pick safest (lowest route risk).
+ * - If safest adds <= 40% duration to fastest: recommend safest.
+ * - Otherwise: recommend fastest and explain the time trade-off.
+ */
+export function compareRoutes(
+  scoredRoutes: ScoredRoute[]
+): RouteComparisonResult {
+  if (scoredRoutes.length === 0) {
+    throw new Error("No scored routes available for comparison.");
+  }
+
+  // Find fastest
+  const fastest = [...scoredRoutes].sort((a, b) => a.duration_s - b.duration_s)[0];
+
+  // Find safest (lowest risk)
+  const safest = [...scoredRoutes].sort((a, b) => a.risk_score - b.risk_score)[0];
+
+  // If same route
+  if (fastest.risk_score === safest.risk_score && fastest.duration_s === safest.duration_s) {
+    return {
+      fastest,
+      safest,
+      recommendation: "fastest",
+      reason: `Primary route has a manageable risk score of ${fastest.risk_score}/100. No significant lower-risk deviation found.`,
+    };
+  }
+
+  const durationDelta = safest.duration_s - fastest.duration_s;
+  const durationIncreasePct = fastest.duration_s > 0 ? (durationDelta / fastest.duration_s) * 100 : 0;
+  const extraMinutes = Math.round(durationDelta / 60);
+
+  // If safest adds <= 40% to duration, recommend safest
+  if (durationIncreasePct <= 40) {
+    return {
+      fastest,
+      safest,
+      recommendation: "safest",
+      reason: `Safer detour recommended: avoids severe waterlogging zones (Risk ${safest.risk_score} vs ${fastest.risk_score}) adding only ${extraMinutes} min (+${Math.round(durationIncreasePct)}% travel time).`,
+    };
+  }
+
+  // Otherwise recommend fastest due to excessive detour time
+  return {
+    fastest,
+    safest,
+    recommendation: "fastest",
+    reason: `Fastest route recommended: avoiding flood zones adds ${extraMinutes} min (+${Math.round(durationIncreasePct)}% travel time), exceeding the 40% threshold. Proceed with caution.`,
+  };
+}

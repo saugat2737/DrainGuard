@@ -49,8 +49,8 @@ export function findNearestZone(
       } else {
         // Distance to polygon boundary
         const boundary = turf.polygonToLine(poly);
-        if (boundary.type === "Feature") {
-          distM = turf.pointToLineDistance(pt, boundary as turf.Feature<turf.LineString | turf.MultiLineString>, { units: "meters" });
+        if (boundary && "type" in boundary && boundary.type === "Feature") {
+          distM = turf.pointToLineDistance(pt, boundary as any, { units: "meters" });
         }
       }
     } else if (zone.geometry.type === "LineString") {
@@ -76,4 +76,17 @@ export function findNearestZone(
  */
 export function addReport(report: Report): void {
   runtimeReports.push(report);
+}
+
+/**
+ * Update report status (e.g., Open -> Assigned -> Cleared)
+ */
+export function updateReportStatus(reportId: string, status: "open" | "assigned" | "cleared"): Report | null {
+  const index = runtimeReports.findIndex((r) => r.id === reportId);
+  if (index === -1) return null;
+  runtimeReports[index] = {
+    ...runtimeReports[index],
+    status,
+  };
+  return runtimeReports[index];
 }

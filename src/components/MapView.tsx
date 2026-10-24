@@ -17,6 +17,8 @@ interface MapViewProps {
   onSelectZone: (zone: Zone & { risk: ZoneRisk }) => void;
   center?: [number, number];
   zoom?: number;
+  routeGeometry?: [number, number][] | null;
+  routeType?: "fastest" | "safest";
 }
 
 // Operational risk colors from official Brand Kit & docs/07_UI_UX_SPEC.md
@@ -41,6 +43,8 @@ export default function MapView({
   onSelectZone,
   center = [13.3392, 77.1140],
   zoom = 14,
+  routeGeometry = null,
+  routeType = "safest",
 }: MapViewProps) {
   return (
     <div className="relative w-full h-full min-h-[440px] rounded-xl overflow-hidden border border-slate-700/60 shadow-xl shadow-black/30">
@@ -56,6 +60,19 @@ export default function MapView({
         />
 
         <MapRecenter center={center} />
+
+        {/* Display computed active driving route line if present */}
+        {routeGeometry && routeGeometry.length > 1 && (
+          <Polyline
+            positions={routeGeometry.map(([lng, lat]) => [lat, lng])}
+            pathOptions={{
+              color: routeType === "safest" ? "#20D6C2" : "#38BDF8",
+              weight: 6,
+              opacity: 0.95,
+              dashArray: routeType === "safest" ? undefined : "6 6",
+            }}
+          />
+        )}
 
         {zones.map((zone) => {
           const isSelected = zone.id === selectedZoneId;
