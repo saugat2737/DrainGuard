@@ -42,3 +42,7 @@ Desktop.ini
 # AI / Agent workspace artifacts
 .agents/
 skills-lock.json
+
+# Local scratch and binary dumps
+*.xlsx
+*.zip
