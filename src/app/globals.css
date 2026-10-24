@@ -4,58 +4,144 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DrainGuard Design Tokens */
-:root {
-  --dg-navy: #0F172A;
-  --dg-ink: #0B1220;
-  --dg-harbor: #142235;
+/* ==========================================================================
+   DrainGuard Semantic Design Tokens & Theme Variables
+   WCAG 2.2 AA compliant contrast in both Light and Dark themes
+   ========================================================================== */
+
+:root,
+html.dark {
+  /* Surface Tokens (Dark Theme Defaults) */
+  --dg-page-bg: #0B1220;
+  --dg-surface-card: rgba(20, 34, 53, 0.95);
+  --dg-surface-elevated: #142235;
+  --dg-surface-muted: #0F172A;
+  --dg-surface-hover: #1E293B;
+  --dg-surface-input: #0B1220;
+
+  /* Text & Foreground Tokens */
+  --dg-text: #F8FAFC;
+  --dg-text-secondary: #94A3B8;
+  --dg-text-muted: #64748B;
+  --dg-text-inverse: #0B1220;
+
+  /* Borders & Dividers */
+  --dg-border: rgba(51, 65, 85, 0.8);
+  --dg-border-subtle: rgba(51, 65, 85, 0.4);
+  --dg-border-accent: rgba(56, 189, 248, 0.3);
+
+  /* Brand Accents */
   --dg-blue: #0EA5E9;
   --dg-aqua: #20D6C2;
   --dg-cyan: #38BDF8;
   --dg-coral: #F43F5E;
 
+  /* Semantic Status & Risk */
   --dg-risk-low: #22C55E;
   --dg-risk-medium: #F59E0B;
   --dg-risk-high: #F97316;
   --dg-risk-severe: #EF4444;
 
+  /* Overlays & Modals */
+  --dg-backdrop: rgba(0, 0, 0, 0.75);
+  --dg-shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+
+  /* Leaflet Map Specific Dark Styling */
+  --dg-map-bg: #0B1220;
+  --dg-tile-filter: brightness(0.68) invert(1) contrast(3.1) hue-rotate(200deg) saturate(0.4) brightness(0.72);
+  --dg-map-ctrl-bg: #142235;
+  --dg-map-ctrl-text: #E2E8F0;
+  --dg-map-ctrl-border: #1E293B;
+  --dg-map-ctrl-hover: #1E293B;
+
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+html.light {
+  /* Surface Tokens (Light Theme) */
+  --dg-page-bg: #F1F5F9;
+  --dg-surface-card: rgba(255, 255, 255, 0.96);
+  --dg-surface-elevated: #FFFFFF;
+  --dg-surface-muted: #F8FAFC;
+  --dg-surface-hover: #E2E8F0;
+  --dg-surface-input: #F8FAFC;
+
+  /* Text & Foreground Tokens (Targeting >4.5:1 WCAG contrast) */
+  --dg-text: #0F172A;
+  --dg-text-secondary: #475569;
+  --dg-text-muted: #64748B;
+  --dg-text-inverse: #FFFFFF;
+
+  /* Borders & Dividers */
+  --dg-border: rgba(203, 213, 225, 0.9);
+  --dg-border-subtle: rgba(226, 232, 240, 0.8);
+  --dg-border-accent: rgba(14, 165, 233, 0.4);
+
+  /* Brand Accents */
+  --dg-blue: #0284C7;
+  --dg-aqua: #0D9488;
+  --dg-cyan: #0284C7;
+  --dg-coral: #E11D48;
+
+  /* Semantic Status & Risk (Adjusted for high light-mode contrast) */
+  --dg-risk-low: #16A34A;
+  --dg-risk-medium: #D97706;
+  --dg-risk-high: #EA580C;
+  --dg-risk-severe: #DC2626;
+
+  /* Overlays & Modals */
+  --dg-backdrop: rgba(15, 23, 42, 0.5);
+  --dg-shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(15, 23, 42, 0.08);
+
+  /* Leaflet Map Specific Light Styling (Clean Natural OSM & SRTM Tiles) */
+  --dg-map-bg: #E2E8F0;
+  --dg-tile-filter: none;
+  --dg-map-ctrl-bg: #FFFFFF;
+  --dg-map-ctrl-text: #0F172A;
+  --dg-map-ctrl-border: #E2E8F0;
+  --dg-map-ctrl-hover: #F1F5F9;
+}
+
 body {
-  background-color: var(--dg-ink);
-  color: #F8FAFC;
+  background-color: var(--dg-page-bg);
+  color: var(--dg-text);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-feature-settings: "tnum" on, "zero" on;
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Map styling */
+/* ==========================================================================
+   Leaflet Map Theming
+   Preserves natural tiles in light mode; applies contrast matrix in dark mode
+   ========================================================================== */
+
 .leaflet-container {
   width: 100%;
   height: 100%;
-  background-color: #0B1220 !important;
+  background-color: var(--dg-map-bg) !important;
   font-family: inherit;
   outline: none;
 }
 
 .leaflet-tile {
-  filter: brightness(0.68) invert(1) contrast(3.1) hue-rotate(200deg) saturate(0.4) brightness(0.72);
+  filter: var(--dg-tile-filter);
+  transition: filter 0.3s ease;
 }
 
 .leaflet-control-zoom {
-  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  border: 1px solid var(--dg-border-accent) !important;
   border-radius: 12px !important;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
 }
 
 .leaflet-control-zoom a {
-  background-color: #142235 !important;
-  color: #E2E8F0 !important;
-  border-bottom: 1px solid #1E293B !important;
+  background-color: var(--dg-map-ctrl-bg) !important;
+  color: var(--dg-map-ctrl-text) !important;
+  border-bottom: 1px solid var(--dg-map-ctrl-border) !important;
   width: 34px !important;
   height: 34px !important;
   line-height: 34px !important;
@@ -63,55 +149,64 @@ body {
 }
 
 .leaflet-control-zoom a:hover {
-  background-color: #1E293B !important;
-  color: #38BDF8 !important;
+  background-color: var(--dg-map-ctrl-hover) !important;
+  color: var(--dg-cyan) !important;
 }
 
 .leaflet-popup-content-wrapper {
-  background: #142235 !important;
-  color: #F8FAFC !important;
-  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  background: var(--dg-surface-card) !important;
+  color: var(--dg-text) !important;
+  border: 1px solid var(--dg-border-accent) !important;
   border-radius: 12px !important;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
 }
 
 .leaflet-popup-tip {
-  background: #142235 !important;
+  background: var(--dg-surface-card) !important;
 }
 
-/* Custom scrollbars */
+.leaflet-container .leaflet-control-attribution {
+  background: var(--dg-surface-card) !important;
+  color: var(--dg-text-secondary) !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-top-left-radius: 6px !important;
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--dg-cyan) !important;
+}
+
+/* ==========================================================================
+   Scrollbars & Accessibility Helpers
+   ========================================================================== */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(11, 18, 32, 0.6);
+  background: var(--dg-page-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.25);
+  background: var(--dg-text-muted);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.45);
+  background: var(--dg-cyan);
 }
 
-/* Touch targets and smooth transitions */
 .touch-target {
   min-height: 44px;
   min-width: 44px;
 }
 
-/* Pulse badge animation */
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  50% {
-    opacity: 0.6;
-    transform: scale(0.95);
-  }
-}
-.pulse-glow {
-  animation: pulseGlow 2.5s infinite ease-in-out;
 }

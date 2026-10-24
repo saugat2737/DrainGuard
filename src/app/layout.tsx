@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const viewport: Viewport = {
-  themeColor: "#0B1220",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F1F5F9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1220" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
@@ -30,9 +34,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#0B1220] text-[#F8FAFC] antialiased selection:bg-[#20D6C2]/30 selection:text-white">
-        {children}
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const stored = localStorage.getItem('drainguard_theme_preference');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const active = stored === 'light' ? 'light' : (stored === 'dark' ? 'dark' : (prefersDark ? 'dark' : 'light'));
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(active);
+                document.documentElement.setAttribute('data-theme', active);
+                document.documentElement.style.colorScheme = active;
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-[var(--dg-page-bg)] text-[var(--dg-text)] antialiased selection:bg-[#20D6C2]/30 selection:text-white transition-colors">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

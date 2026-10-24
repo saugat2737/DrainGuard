@@ -210,17 +210,17 @@ export function JourneyPlanner({
   return (
     <div className="flex flex-col space-y-3">
       {/* Origin & Destination Search Bar */}
-      <div className="bg-[#142235]/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 sm:p-4 shadow-xl space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className="bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] rounded-2xl p-3 sm:p-4 shadow-xl space-y-3 text-[var(--dg-text)] transition-colors">
+        <div className="flex items-center justify-between pb-2 border-b border-[var(--dg-border-subtle)]">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-[#38BDF8]">
+            <div className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-500">
               <Navigation className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--dg-text)]">
                 Plan a Rain-Safe Trip
               </h2>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-[var(--dg-text-secondary)]">
                 Search landmarks or pick points directly on map
               </p>
             </div>
@@ -228,7 +228,7 @@ export function JourneyPlanner({
           {(originPlace || destinationPlace || routeResult) && (
             <button
               onClick={handleClear}
-              className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition"
+              className="text-[11px] text-[var(--dg-text-muted)] hover:text-[var(--dg-text)] flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] transition"
             >
               <RotateCcw className="w-3 h-3" /> Clear
             </button>
@@ -271,7 +271,7 @@ export function JourneyPlanner({
               onClick={handleSwap}
               disabled={!originPlace && !destinationPlace}
               title="Swap origin and destination"
-              className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition flex items-center gap-1 text-[10px]"
+              className="p-1 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] border border-[var(--dg-border)] transition flex items-center gap-1 text-[10px]"
             >
               <ArrowUpDown className="w-3 h-3" />
               <span className="hidden sm:inline">Swap</span>
@@ -303,7 +303,7 @@ export function JourneyPlanner({
                 <button
                   key={p.id}
                   onClick={() => onChangeDestination(p)}
-                  className="text-[10px] bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700/60 truncate transition"
+                  className="text-[10px] bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] px-2 py-1 rounded-lg border border-[var(--dg-border)] truncate transition"
                 >
                   {p.name}
                 </button>
@@ -358,8 +358,8 @@ export function JourneyPlanner({
               onClick={() => onSelectRouteDisplay("safest")}
               className={`p-3 rounded-2xl cursor-pointer transition border relative ${
                 activeDisplayRoute === "safest"
-                  ? "bg-[#142235] border-cyan-400 shadow-[0_0_15px_rgba(32,214,194,0.15)] ring-1 ring-cyan-400"
-                  : "bg-[#0E1726]/80 hover:bg-[#142235]/60 border-slate-800"
+                  ? "bg-[var(--dg-surface-card)] border-cyan-400 shadow-[0_0_15px_rgba(32,214,194,0.15)] ring-1 ring-cyan-400"
+                  : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-card)]/60 border-[var(--dg-border-subtle)]"
               }`}
             >
               {routeResult.recommendation === "safest" && (
@@ -388,8 +388,8 @@ export function JourneyPlanner({
                 onClick={() => onSelectRouteDisplay("balanced")}
                 className={`p-3 rounded-2xl cursor-pointer transition border relative ${
                   activeDisplayRoute === "balanced"
-                    ? "bg-[#142235] border-cyan-400 shadow-[0_0_15px_rgba(56,189,248,0.15)] ring-1 ring-cyan-400"
-                    : "bg-[#0E1726]/80 hover:bg-[#142235]/60 border-slate-800"
+                    ? "bg-[var(--dg-surface-card)] border-cyan-400 shadow-[0_0_15px_rgba(56,189,248,0.15)] ring-1 ring-cyan-400"
+                    : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-card)]/60 border-[var(--dg-border-subtle)]"
                 }`}
               >
                 {routeResult.recommendation === "balanced" && (
@@ -418,8 +418,8 @@ export function JourneyPlanner({
               onClick={() => onSelectRouteDisplay("fastest")}
               className={`p-3 rounded-2xl cursor-pointer transition border relative ${
                 activeDisplayRoute === "fastest"
-                  ? "bg-[#142235] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-400"
-                  : "bg-[#0E1726]/80 hover:bg-[#142235]/60 border-slate-800"
+                  ? "bg-[var(--dg-surface-card)] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-400"
+                  : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-card)]/60 border-[var(--dg-border-subtle)]"
               }`}
             >
               <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold mb-1">
@@ -440,8 +440,8 @@ export function JourneyPlanner({
 
           {/* 3-Check Geospatial Evidence Summary */}
           {isDetailsExpanded && evidence && (
-            <div className="bg-[#142235]/95 border border-slate-700/80 rounded-2xl p-3.5 shadow-xl space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="bg-[var(--dg-surface-card)]/95 border border-[var(--dg-border)] rounded-2xl p-3.5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between border-b border-[var(--dg-border-subtle)] pb-2">
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-cyan-400" />
                   <span className="text-xs font-bold text-white uppercase tracking-wider">
@@ -457,7 +457,7 @@ export function JourneyPlanner({
               </div>
 
               {/* Check 1: Forecast Precipitation */}
-              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+              <div className="p-2 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border-subtle)]/80 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sky-400 flex items-center gap-1.5 text-[11px]">
                     <CloudRain className="w-3.5 h-3.5" /> Check A: Current & Forecast Rain
@@ -472,7 +472,7 @@ export function JourneyPlanner({
               </div>
 
               {/* Check 2: Antecedent & Historical Incidents */}
-              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+              <div className="p-2 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border-subtle)]/80 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-teal-400 flex items-center gap-1.5 text-[11px]">
                     <History className="w-3.5 h-3.5" /> Check B: Previous Rain & Topography
@@ -487,7 +487,7 @@ export function JourneyPlanner({
               </div>
 
               {/* Check 3: Free Traffic Policy */}
-              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+              <div className="p-2 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border-subtle)]/80 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-amber-400 flex items-center gap-1.5 text-[11px]">
                     <Car className="w-3.5 h-3.5" /> Check C: Routing & Traffic Feasibility
@@ -507,7 +507,7 @@ export function JourneyPlanner({
           {isDetailsExpanded && activeRouteData && (
             <div className="space-y-2.5 pt-1">
               {/* Recommendation narrative */}
-              <div className="p-2.5 rounded-xl bg-[#0B1220] border border-slate-800 text-xs space-y-1">
+              <div className="p-2.5 rounded-xl bg-[var(--dg-surface-input)] border border-[var(--dg-border-subtle)] text-xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-[#38BDF8]">
                   <Info className="w-3.5 h-3.5" />
                   <span>Why This Route is Suggested</span>

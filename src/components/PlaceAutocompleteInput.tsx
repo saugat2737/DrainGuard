@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Search, MapPin, X, Loader2, Navigation2, Check } from "lucide-react";
+import { MapPin, X, Loader2 } from "lucide-react";
 import { GeocodePlace, TUMAKURU_FALLBACK_PRESETS } from "@/lib/geocoding";
 
 interface PlaceAutocompleteInputProps {
@@ -36,7 +36,6 @@ export function PlaceAutocompleteInput({
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Sync displayed query if parent resets or updates value externally
   useEffect(() => {
     if (value) {
       setQuery(value.name);
@@ -45,7 +44,6 @@ export function PlaceAutocompleteInput({
     }
   }, [value, isPickingOnMap]);
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -63,7 +61,6 @@ export function PlaceAutocompleteInput({
 
     const trimmed = searchQuery.trim();
     if (trimmed.length < 2) {
-      // Show default suggestions when query is very short
       const filtered = TUMAKURU_FALLBACK_PRESETS.filter((p) =>
         trimmed.length === 0 ? true : p.name.toLowerCase().includes(trimmed.toLowerCase())
       ).slice(0, 5);
@@ -90,7 +87,6 @@ export function PlaceAutocompleteInput({
       }
     } catch (err: unknown) {
       if ((err as any)?.name !== "AbortError") {
-        // Fallback to local suggestions
         const filtered = TUMAKURU_FALLBACK_PRESETS.filter((p) =>
           p.name.toLowerCase().includes(trimmed.toLowerCase())
         ).slice(0, 5);
@@ -113,7 +109,7 @@ export function PlaceAutocompleteInput({
 
     debounceTimerRef.current = setTimeout(() => {
       fetchResults(text);
-    }, 320); // 320ms debounce
+    }, 320);
   };
 
   const handleSelectPlace = (place: GeocodePlace) => {
@@ -158,27 +154,24 @@ export function PlaceAutocompleteInput({
   };
 
   const getPinColor = () => {
-    if (accentColor === "green") return "bg-[#22C55E] shadow-[0_0_8px_rgba(34,197,94,0.6)]";
-    if (accentColor === "red") return "bg-[#EF4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]";
-    return "bg-[#38BDF8] shadow-[0_0_8px_rgba(56,189,248,0.6)]";
+    if (accentColor === "green") return "text-emerald-500";
+    if (accentColor === "red") return "text-rose-500";
+    return "text-cyan-500";
   };
 
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* Input container */}
       <div
-        className={`flex items-center gap-2 bg-[#0B1220] border ${
-          isPickingOnMap
-            ? "border-cyan-400 ring-2 ring-cyan-500/20"
-            : isOpen
-            ? "border-cyan-500/80"
-            : "border-slate-800 focus-within:border-cyan-500/60"
-        } p-2 rounded-xl transition duration-150`}
+        className={`flex items-center gap-2 p-2 rounded-xl border bg-[var(--dg-surface-input)] transition shadow-sm ${
+          isOpen
+            ? "border-cyan-500 ring-2 ring-cyan-500/20"
+            : "border-[var(--dg-border)] hover:border-slate-500"
+        }`}
       >
-        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${getPinColor()}`} />
+        <MapPin className={`w-4 h-4 shrink-0 ${getPinColor()}`} />
 
         <div className="flex-1 min-w-0">
-          <label htmlFor={id} className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider leading-none">
+          <label htmlFor={id} className="block text-[9px] uppercase font-bold text-[var(--dg-text-muted)] tracking-wider">
             {label}
           </label>
           <input
@@ -198,19 +191,19 @@ export function PlaceAutocompleteInput({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             autoComplete="off"
-            className="w-full bg-transparent text-white text-xs font-medium focus:outline-none placeholder:text-slate-500 truncate pt-0.5"
+            className="w-full bg-transparent text-[var(--dg-text)] text-xs font-medium focus:outline-none placeholder:text-[var(--dg-text-muted)] truncate pt-0.5"
           />
         </div>
 
         {/* Input utility actions */}
         <div className="flex items-center gap-1 shrink-0">
           {isLoading ? (
-            <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin mr-1" />
+            <Loader2 className="w-3.5 h-3.5 text-cyan-500 animate-spin mr-1" />
           ) : query.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition"
+              className="p-1 text-[var(--dg-text-muted)] hover:text-[var(--dg-text)] rounded hover:bg-[var(--dg-surface-hover)] transition"
               aria-label={`Clear ${label}`}
             >
               <X className="w-3.5 h-3.5" />
@@ -225,11 +218,11 @@ export function PlaceAutocompleteInput({
               aria-label="Pick location directly on map"
               className={`p-1.5 rounded-lg border text-[10px] font-semibold flex items-center gap-1 transition ${
                 isPickingOnMap
-                  ? "bg-cyan-500/20 text-cyan-300 border-cyan-400 animate-pulse"
-                  : "bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700"
+                  ? "bg-cyan-500/20 text-cyan-500 border-cyan-500 animate-pulse"
+                  : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] border-[var(--dg-border)]"
               }`}
             >
-              <MapPin className="w-3 h-3 text-cyan-400" />
+              <MapPin className="w-3 h-3 text-cyan-500" />
               <span className="hidden sm:inline">Map</span>
             </button>
           )}
@@ -241,13 +234,13 @@ export function PlaceAutocompleteInput({
         <div
           id={`${id}-results`}
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1.5 z-[600] bg-[#0E1726] border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute left-0 right-0 top-full mt-1.5 z-[600] bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {results.length === 0 ? (
-            <div className="p-3 text-center text-xs text-slate-400">
+            <div className="p-3 text-center text-xs text-[var(--dg-text-muted)]">
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400" /> Searching places...
+                  <Loader2 className="w-3 h-3 animate-spin text-cyan-500" /> Searching places...
                 </span>
               ) : (
                 <span>No matching places found. Try another search or pick directly on the map.</span>
@@ -255,9 +248,9 @@ export function PlaceAutocompleteInput({
             </div>
           ) : (
             <ul className="py-1">
-              <li className="px-3 py-1 text-[9px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-800/60 bg-slate-900/40 flex justify-between">
+              <li className="px-3 py-1 text-[9px] uppercase tracking-wider text-[var(--dg-text-muted)] font-bold border-b border-[var(--dg-border-subtle)] bg-[var(--dg-surface-muted)] flex justify-between">
                 <span>{query.trim().length >= 2 ? "Search Results" : "Suggested Landmarks"}</span>
-                <span className="font-normal lowercase text-slate-400">Photon / OSM</span>
+                <span className="font-normal lowercase text-[var(--dg-text-muted)]">Photon / OSM</span>
               </li>
 
               {results.map((place, idx) => {
@@ -269,21 +262,23 @@ export function PlaceAutocompleteInput({
                     aria-selected={isSelected}
                     onClick={() => handleSelectPlace(place)}
                     onMouseEnter={() => setSelectedIndex(idx)}
-                    className={`px-3 py-2 cursor-pointer flex items-start gap-2.5 transition border-b border-slate-800/40 last:border-b-0 ${
-                      isSelected ? "bg-cyan-500/15 text-white" : "text-slate-300 hover:bg-slate-800/50"
+                    className={`px-3 py-2 cursor-pointer flex items-start gap-2.5 transition border-b border-[var(--dg-border-subtle)] last:border-b-0 ${
+                      isSelected
+                        ? "bg-cyan-500/15 text-[var(--dg-text)]"
+                        : "text-[var(--dg-text-secondary)] hover:bg-[var(--dg-surface-hover)]"
                     }`}
                   >
-                    <MapPin className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${place.isLocalSuggestion ? "text-cyan-400" : "text-amber-400"}`} />
+                    <MapPin className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${place.isLocalSuggestion ? "text-cyan-500" : "text-amber-500"}`} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-white flex items-center justify-between">
+                      <div className="text-xs font-semibold text-[var(--dg-text)] flex items-center justify-between">
                         <span className="truncate">{place.name}</span>
                         {place.isLocalSuggestion && (
-                          <span className="text-[9px] text-cyan-400 bg-cyan-950/60 px-1.5 py-0.2 rounded border border-cyan-800/60 shrink-0 ml-1">
+                          <span className="text-[9px] text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded border border-cyan-500/20 shrink-0 ml-1">
                             Local Landmark
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <div className="text-[10px] text-[var(--dg-text-secondary)] truncate mt-0.5">
                         {place.displayName}
                       </div>
                     </div>

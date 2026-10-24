@@ -9,14 +9,14 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
-  Filter,
   CheckCircle2,
   Clock,
-  ShieldAlert,
   ChevronRight,
   Droplets,
 } from "lucide-react";
 import { RiskLevel } from "@/lib/types";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface InspectionItem {
   zone_id: string;
@@ -43,6 +43,7 @@ interface ReportDetail {
 }
 
 function MunicipalDashboardContent() {
+  const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
   const initialRainParam = searchParams.get("rain_mm");
   const parsedInitialRain = initialRainParam ? parseFloat(initialRainParam) : 0;
@@ -94,7 +95,6 @@ function MunicipalDashboardContent() {
     fetchInspectionsAndReports(rainMm);
   }, [fetchInspectionsAndReports, rainMm]);
 
-  // Handle report lifecycle mutation (open -> assigned -> cleared)
   const handleUpdateReportStatus = async (
     reportId: string,
     newStatus: "open" | "assigned" | "cleared"
@@ -109,7 +109,6 @@ function MunicipalDashboardContent() {
 
       if (!res.ok) throw new Error("Failed to update report status");
 
-      // Refetch state
       await fetchInspectionsAndReports(rainMm);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to mutate status");
@@ -121,13 +120,13 @@ function MunicipalDashboardContent() {
   const getLevelBadge = (level: RiskLevel) => {
     switch (level) {
       case "low":
-        return "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30";
+        return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
       case "medium":
-        return "bg-[#F5B942]/15 text-[#F5B942] border-[#F5B942]/30";
+        return "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
       case "high":
-        return "bg-[#F97316]/15 text-[#F97316] border-[#F97316]/30";
+        return "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30";
       case "severe":
-        return "bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444]/40";
+        return "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40";
     }
   };
 
@@ -135,175 +134,204 @@ function MunicipalDashboardContent() {
   const selectedZoneItem = inspections.find((i) => i.zone_id === selectedZoneId);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100">
+    <div className="min-h-screen flex flex-col bg-[var(--dg-page-bg)] text-[var(--dg-text)] transition-colors">
       {/* Top Header */}
-      <header className="h-14 sm:h-16 border-b border-slate-800/80 bg-[#0B1220]/95 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-md">
+      <header className="h-14 sm:h-16 border-b border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-sm transition-colors">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#142235] hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition touch-target"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-semibold text-[var(--dg-text)] transition touch-target"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Commuter Map</span>
           </Link>
-          <div className="h-4 w-[1px] bg-slate-800 hidden sm:block" />
+          <div className="h-4 w-[1px] bg-[var(--dg-border)] hidden sm:block" />
           <div className="flex items-center gap-2">
-            <Image
-              src="/assets/drainguard-logo-dark.svg"
-              alt="DrainGuard"
-              width={120}
-              height={24}
-              className="h-6 w-auto object-contain hidden sm:block"
-            />
-            <span className="font-bold text-[10px] tracking-wider uppercase text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-lg bg-cyan-950/40">
-              Municipal Console
+            <span className="font-bold text-xs tracking-wider uppercase text-cyan-600 dark:text-cyan-400">
+              Municipal Operations Console
+            </span>
+            <span className="text-[10px] bg-slate-500/10 text-[var(--dg-text-secondary)] border border-[var(--dg-border)] px-1.5 py-0.5 rounded font-mono hidden sm:inline">
+              Tumakuru City Corporation (TCC)
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 bg-[#142235] px-2.5 py-1.5 rounded-xl border border-slate-700/80 text-xs">
-            <Droplets className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-slate-400 font-medium hidden xs:inline">Rain Context:</span>
-            <span className="font-bold text-white tabular-nums">{Math.round(rainMm)} mm</span>
-          </div>
-
+          {/* Refresh button */}
           <button
             onClick={() => fetchInspectionsAndReports(rainMm)}
-            className="p-2 rounded-xl bg-[#142235] hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition touch-target"
-            title="Refresh Backlog"
+            disabled={isLoading}
+            className="p-2 rounded-xl bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] transition touch-target"
+            title="Refresh Inspection Queue"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
           </button>
+          <ThemeToggle />
         </div>
       </header>
 
-      {/* Main Workspace */}
-      <main className="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Priority Inspection Queue (7 cols) */}
-        <div className="lg:col-span-7 bg-[#142235]/95 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-cyan-400" />
-                <span>Priority Clearance Backlog</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Sorted by deterministic risk: <code className="text-slate-300">score DESC → open_reports DESC</code>
-              </p>
+      {/* Main Operations Container */}
+      <main className="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Left 2 Cols: Ranked Backlog Table */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4 transition-colors">
+            {/* Header with quick stats */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--dg-border-subtle)] pb-3">
+              <div>
+                <h1 className="text-base font-bold text-[var(--dg-text)]">
+                  Catchment Clearance Priority Queue
+                </h1>
+                <p className="text-xs text-[var(--dg-text-secondary)]">
+                  Ranked by live waterlogging risk score DESC → open reports DESC
+                </p>
+              </div>
+
+              {/* Rain simulation pill */}
+              <div className="flex items-center gap-2 bg-[var(--dg-surface-elevated)] border border-[var(--dg-border)] px-3 py-1.5 rounded-xl text-xs">
+                <Droplets className="w-4 h-4 text-cyan-500 shrink-0" />
+                <span className="text-[var(--dg-text-secondary)] font-medium">Simulation Rain:</span>
+                <span className="font-bold text-[var(--dg-text)] tabular-nums">{Math.round(rainMm)} mm</span>
+              </div>
             </div>
-            <span className="text-xs text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-800/60 font-semibold tabular-nums">
-              {inspections.length} Zones
-            </span>
+
+            {/* Error banner */}
+            {errorMessage && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Backlog Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--dg-border-subtle)] text-[var(--dg-text-muted)] font-bold text-[10px] uppercase tracking-wider">
+                    <th className="py-2.5 px-3">Priority #</th>
+                    <th className="py-2.5 px-3">Catchment / Ward</th>
+                    <th className="py-2.5 px-3">Risk Score</th>
+                    <th className="py-2.5 px-3">Open Reports</th>
+                    <th className="py-2.5 px-3">Primary Factor</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--dg-border-subtle)]">
+                  {isLoading && inspections.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-[var(--dg-text-muted)]">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto text-cyan-500 mb-2" />
+                        Evaluating drainage catchments...
+                      </td>
+                    </tr>
+                  ) : inspections.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-[var(--dg-text-muted)]">
+                        No inspection catchments found.
+                      </td>
+                    </tr>
+                  ) : (
+                    inspections.map((item, idx) => {
+                      const isSelected = item.zone_id === selectedZoneId;
+
+                      return (
+                        <tr
+                          key={item.zone_id}
+                          onClick={() => setSelectedZoneId(item.zone_id)}
+                          className={`cursor-pointer transition ${
+                            isSelected
+                              ? "bg-cyan-500/10 border-l-4 border-l-cyan-500"
+                              : "hover:bg-[var(--dg-surface-hover)]"
+                          }`}
+                        >
+                          <td className="py-3 px-3 font-mono font-bold text-[var(--dg-text)]">
+                            #{idx + 1}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-semibold text-[var(--dg-text)] block truncate max-w-[180px]">
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400">
+                              {item.zone_id}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${getLevelBadge(
+                                item.level
+                              )}`}
+                            >
+                              {item.score}/100
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 tabular-nums font-semibold text-[var(--dg-text)]">
+                            {item.open_reports}
+                          </td>
+                          <td className="py-3 px-3 text-[11px] text-[var(--dg-text-secondary)] truncate max-w-[150px]">
+                            {item.top_reason}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <ChevronRight className="w-4 h-4 inline text-[var(--dg-text-muted)]" />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-
-          {isLoading ? (
-            <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-              <span className="text-xs font-medium">Calculating municipal priority backlog...</span>
-            </div>
-          ) : errorMessage ? (
-            <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          ) : (
-            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-14rem)] pr-1">
-              {inspections.map((item, idx) => {
-                const isSelected = item.zone_id === selectedZoneId;
-                const badgeClass = getLevelBadge(item.level);
-
-                return (
-                  <div
-                    key={item.zone_id}
-                    onClick={() => setSelectedZoneId(item.zone_id)}
-                    className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? "bg-slate-900 border-cyan-500 ring-1 ring-cyan-500 shadow-md shadow-cyan-950/30"
-                        : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-400 tabular-nums shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm truncate">{item.name}</span>
-                          <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-1.5 py-0.2 rounded border border-cyan-800/40">
-                            {item.zone_id}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.top_reason}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right">
-                        <div className="text-base font-bold text-white tabular-nums">
-                          {item.score} <span className="text-[10px] font-normal text-slate-400">/ 100</span>
-                        </div>
-                        <span className={`inline-block px-2 py-0.2 rounded-full text-[10px] font-bold border ${badgeClass} uppercase`}>
-                          {item.level}
-                        </span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
-        {/* Right Column: Zone Inspection & Live Report Lifecycle (5 cols) */}
-        <div className="lg:col-span-5 bg-[#142235]/95 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col space-y-4">
-          <div className="pb-3 border-b border-slate-800">
-            <h2 className="text-base font-bold text-white">Zone Dispatch & Report Lifecycle</h2>
-            <p className="text-xs text-slate-400">
-              {selectedZoneItem ? selectedZoneItem.name : "Select a catchment"}
-            </p>
-          </div>
-
+        {/* Right Col: Detailed Catchment Drawer & Reports */}
+        <div className="bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4 transition-colors">
           {selectedZoneItem ? (
-            <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-14rem)] pr-1">
-              {/* Summary Stats */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 rounded-xl bg-[#0B1220] border border-slate-800">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Current Risk</span>
-                  <span className="text-lg font-bold text-white tabular-nums">{selectedZoneItem.score}/100</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-[#0B1220] border border-slate-800">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Open Blockage Reports</span>
-                  <span className="text-lg font-bold text-amber-400 tabular-nums">{selectedZoneItem.open_reports}</span>
+            <div className="space-y-4">
+              <div className="border-b border-[var(--dg-border-subtle)] pb-3">
+                <span className="text-[10px] font-mono uppercase text-cyan-600 dark:text-cyan-400 font-bold block">
+                  Catchment Detail: {selectedZoneItem.zone_id}
+                </span>
+                <h2 className="text-base font-bold text-[var(--dg-text)] mt-0.5">
+                  {selectedZoneItem.name}
+                </h2>
+                <div className="flex items-center gap-2 mt-2">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${getLevelBadge(
+                      selectedZoneItem.level
+                    )}`}
+                  >
+                    Risk Score: {selectedZoneItem.score}/100
+                  </span>
+                  <span className="text-xs text-[var(--dg-text-muted)]">
+                    Peak Forecast: {selectedZoneItem.score_at_forecast_peak}/100
+                  </span>
                 </div>
               </div>
 
               {/* Citizen Reports List for this Zone */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                <span className="text-xs font-bold text-[var(--dg-text-secondary)] uppercase tracking-wider block">
                   Citizen Incident Reports ({selectedZoneReports.length})
                 </span>
 
                 {selectedZoneReports.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 text-center">
+                  <div className="p-4 rounded-xl bg-[var(--dg-surface-muted)] border border-[var(--dg-border)] text-xs text-[var(--dg-text-muted)] text-center">
                     No citizen reports logged in this catchment yet.
                   </div>
                 ) : (
                   selectedZoneReports.map((report) => (
                     <div
                       key={report.id}
-                      className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs"
+                      className="p-3 rounded-xl bg-[var(--dg-surface-elevated)] border border-[var(--dg-border)] space-y-2 text-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-white capitalize flex items-center gap-1.5">
+                        <span className="font-semibold text-[var(--dg-text)] capitalize flex items-center gap-1.5">
                           <span
                             className={`w-2 h-2 rounded-full ${
                               report.status === "open"
                                 ? "bg-rose-500"
                                 : report.status === "assigned"
-                                ? "bg-amber-400"
-                                : "bg-emerald-400"
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
                             }`}
                           />
                           {report.blockage_type} (Severity {report.severity})
@@ -311,25 +339,25 @@ function MunicipalDashboardContent() {
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
                             report.status === "open"
-                              ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                              ? "bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30"
                               : report.status === "assigned"
-                              ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                              : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30"
+                              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30"
                           }`}
                         >
                           {report.status}
                         </span>
                       </div>
 
-                      <p className="text-slate-300 text-[11px] leading-snug">{report.summary}</p>
+                      <p className="text-[var(--dg-text-secondary)] text-[11px] leading-snug">{report.summary}</p>
 
                       {/* State transition buttons */}
-                      <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                      <div className="pt-2 border-t border-[var(--dg-border-subtle)] flex items-center gap-2">
                         {report.status === "open" && (
                           <button
                             onClick={() => handleUpdateReportStatus(report.id, "assigned")}
                             disabled={isUpdatingStatus === report.id}
-                            className="flex-1 py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1"
+                            className="flex-1 py-1 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1"
                           >
                             <Clock className="w-3 h-3" />
                             <span>Assign Crew</span>
@@ -339,14 +367,14 @@ function MunicipalDashboardContent() {
                           <button
                             onClick={() => handleUpdateReportStatus(report.id, "cleared")}
                             disabled={isUpdatingStatus === report.id}
-                            className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1"
+                            className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1"
                           >
                             <CheckCircle2 className="w-3 h-3" />
                             <span>Mark Cleared</span>
                           </button>
                         )}
                         {report.status === "cleared" && (
-                          <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" /> Clearance verified (0 weight)
                           </span>
                         )}
@@ -357,7 +385,7 @@ function MunicipalDashboardContent() {
               </div>
             </div>
           ) : (
-            <div className="py-20 text-center text-slate-400 text-xs">
+            <div className="py-20 text-center text-[var(--dg-text-muted)] text-xs">
               Select a catchment from the backlog to inspect reports.
             </div>
           )}
@@ -371,7 +399,7 @@ export default function MunicipalPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0B1220] flex items-center justify-center text-slate-400 text-xs font-semibold">
+        <div className="min-h-screen bg-[var(--dg-page-bg)] flex items-center justify-center text-[var(--dg-text-muted)] text-xs font-semibold">
           Loading Municipal Operations...
         </div>
       }

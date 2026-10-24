@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -13,23 +14,23 @@ const config: Config = {
           navy: "#0F172A",
           harbor: "#142235",
           ink: "#0B1220",
-          card: "rgba(20, 34, 53, 0.95)",
-          blue: "#0EA5E9",
-          aqua: "#20D6C2",
-          cyan: "#38BDF8",
-          coral: "#F43F5E",
+          card: "var(--dg-surface-card)",
+          blue: "var(--dg-blue)",
+          aqua: "var(--dg-aqua)",
+          cyan: "var(--dg-cyan)",
+          coral: "var(--dg-coral)",
         },
         risk: {
-          low: "#22C55E",
-          medium: "#F59E0B",
-          high: "#F97316",
-          severe: "#EF4444",
+          low: "var(--dg-risk-low)",
+          medium: "var(--dg-risk-medium)",
+          high: "var(--dg-risk-high)",
+          severe: "var(--dg-risk-severe)",
         },
       },
       boxShadow: {
-        ny: "0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08)",
-        floating: "0 20px 40px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(56, 189, 248, 0.15)",
-        sheet: "0 -10px 30px -5px rgba(0, 0, 0, 0.6)",
+        ny: "var(--dg-shadow-card)",
+        floating: "0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--dg-border-accent)",
+        sheet: "0 -10px 30px -5px rgba(0, 0, 0, 0.4)",
       },
       zIndex: {
         map: "0",

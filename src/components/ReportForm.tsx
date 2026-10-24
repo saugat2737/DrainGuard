@@ -35,7 +35,6 @@ export function ReportForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Default coordinate selection based on active zone or Tumakuru center
   const initialLat = selectedZone?.geometry.type === "Polygon"
     ? selectedZone.geometry.coordinates[0][0][1]
     : selectedZone?.geometry.type === "LineString"
@@ -51,7 +50,6 @@ export function ReportForm({
   const [lat, setLat] = useState<number>(initialLat);
   const [lng, setLng] = useState<number>(initialLng);
 
-  // Editable fields after analysis
   const [blockageType, setBlockageType] = useState<BlockageType>("plastic");
   const [severity, setSeverity] = useState<ReportSeverity>(2);
   const [summary, setSummary] = useState<string>("");
@@ -81,7 +79,6 @@ export function ReportForm({
     };
     reader.readAsDataURL(file);
 
-    // Trigger AI Vision Analysis automatically
     setIsAnalyzing(true);
     try {
       const formData = new FormData();
@@ -101,7 +98,6 @@ export function ReportForm({
         setSummary(json.data.summary);
       }
     } catch {
-      // Graceful fallback
       setAnalysisResult({
         blockage_type: "unknown",
         severity: 2,
@@ -157,10 +153,10 @@ export function ReportForm({
       setTimeout(() => {
         onReportSubmitted(json.data?.matched_zone_id);
         onClose();
-      }, 1400);
+      }, 1500);
     } catch (err: unknown) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Submission failed. Please try again."
+        err instanceof Error ? err.message : "Failed to record blockage report."
       );
     } finally {
       setIsSubmitting(false);
@@ -168,113 +164,131 @@ export function ReportForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#142235] border border-slate-700/80 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 bg-[var(--dg-backdrop)] backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-2xl p-5 shadow-2xl text-[var(--dg-text)] space-y-4 max-h-[92vh] overflow-y-auto transition-colors">
         {/* Header */}
-        <div className="p-4 md:p-5 border-b border-slate-800 flex items-center justify-between shrink-0 bg-[#0B1220]/70">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-[#38BDF8]">
-              <UploadCloud className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-base">Report Blocked Drain</h3>
-              <p className="text-xs text-slate-400">
-                Citizen flood alert · Tumakuru Municipal Operations
-              </p>
-            </div>
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--dg-border-subtle)]">
+          <div>
+            <h2 className="text-base font-bold text-[var(--dg-text)]">
+              Report Blocked Drain or Culvert
+            </h2>
+            <p className="text-xs text-[var(--dg-text-secondary)]">
+              Help calibrate flood risk in your ward with photo evidence
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            className="p-1 rounded-lg hover:bg-[var(--dg-surface-hover)] text-[var(--dg-text-muted)] hover:text-[var(--dg-text)] transition"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Status Alerts */}
+        {errorMessage && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+        )}
+
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 overflow-y-auto space-y-4 flex-1">
-          {errorMessage && (
-            <div className="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[#34D399] text-xs flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* Photo Upload Area */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Photo Upload Zone */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 block">
-              1. Drain Photograph (JPEG, PNG, WebP ≤ 5MB)
+            <label className="text-xs font-semibold text-[var(--dg-text-secondary)] block">
+              Photo of Drain / Choke Point (Optional)
             </label>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-700 hover:border-cyan-500/60 bg-slate-900/60 rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[130px] relative overflow-hidden"
-            >
-              {photoPreview ? (
-                <div className="relative w-full h-32 rounded-lg overflow-hidden">
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+            />
+
+            {!photoPreview ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-[var(--dg-border)] hover:border-cyan-500 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer bg-[var(--dg-surface-input)] hover:bg-[var(--dg-surface-hover)] transition group"
+              >
+                <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-500 group-hover:scale-110 transition-transform mb-2">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-[var(--dg-text)]">
+                  Click to capture or upload drain photo
+                </span>
+                <span className="text-[11px] text-[var(--dg-text-muted)] mt-0.5">
+                  Gemini Vision automatically classifies debris & severity
+                </span>
+              </div>
+            ) : (
+              <div className="relative rounded-xl overflow-hidden border border-[var(--dg-border)] bg-[var(--dg-surface-input)] p-2 flex items-center gap-3">
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-[var(--dg-border)]">
                   <Image
                     src={photoPreview}
-                    alt="Uploaded drain preview"
+                    alt="Blockage preview"
                     fill
                     className="object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition text-white text-xs font-medium">
-                    Click to replace photograph
-                  </div>
                 </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <UploadCloud className="w-8 h-8 text-[#38BDF8] mx-auto" />
-                  <p className="text-xs text-slate-300 font-medium">
-                    Click to upload drain photo
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    AI automatically analyzes waste type & severity
-                  </p>
+                <div className="flex-1 min-w-0 text-xs">
+                  <span className="font-semibold text-[var(--dg-text)] truncate block">
+                    {photoFile?.name}
+                  </span>
+                  <span className="text-[11px] text-[var(--dg-text-muted)]">
+                    {(photoFile?.size ? photoFile.size / 1024 : 0).toFixed(0)} KB
+                  </span>
+                  {isAnalyzing && (
+                    <div className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 font-semibold mt-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Analyzing photo with Gemini Vision...
+                    </div>
+                  )}
                 </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhotoFile(null);
+                    setPhotoPreview(null);
+                    setAnalysisResult(null);
+                  }}
+                  className="p-1 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] text-[var(--dg-text-muted)] hover:text-[var(--dg-text)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* AI Analysis Result Indicator */}
-          {isAnalyzing && (
-            <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-800/50 flex items-center gap-2.5 text-xs text-cyan-300">
-              <Loader2 className="w-4 h-4 animate-spin text-[#38BDF8]" />
-              <span>Gemini Vision inspecting photograph for plastic, silt, and debris...</span>
-            </div>
-          )}
-
-          {analysisResult && !isAnalyzing && (
-            <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-700/80 space-y-2">
+          {/* AI Analysis Preview Pill */}
+          {analysisResult && (
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-white flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#20D6C2]" />
+                <span className="font-semibold text-[var(--dg-text)] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-500" />
                   AI Classification Preview
                 </span>
                 {analysisResult.fallback ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-[#F5B942] border border-amber-500/25">
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
                     Fallback Rule Applied
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-cyan-500/10 text-[#38BDF8] border border-cyan-500/25">
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/25">
                     Gemini Vision Verified
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-300 italic">
+              <p className="text-xs text-[var(--dg-text-secondary)] italic">
                 &ldquo;{summary}&rdquo;
               </p>
             </div>
@@ -283,13 +297,13 @@ export function ReportForm({
           {/* Classification & Severity Controls */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-400 block uppercase">
+              <label className="text-[11px] font-semibold text-[var(--dg-text-muted)] block uppercase">
                 Blockage Material
               </label>
               <select
                 value={blockageType}
                 onChange={(e) => setBlockageType(e.target.value as BlockageType)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyan-400"
+                className="w-full bg-[var(--dg-surface-input)] border border-[var(--dg-border)] rounded-lg p-2 text-xs text-[var(--dg-text)] focus:outline-none focus:border-cyan-500"
               >
                 <option value="plastic">Plastic / Polythene</option>
                 <option value="silt">Silt / Mud</option>
@@ -301,13 +315,13 @@ export function ReportForm({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-400 block uppercase">
+              <label className="text-[11px] font-semibold text-[var(--dg-text-muted)] block uppercase">
                 Blockage Severity
               </label>
               <select
                 value={severity}
                 onChange={(e) => setSeverity(Number(e.target.value) as ReportSeverity)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyan-400"
+                className="w-full bg-[var(--dg-surface-input)] border border-[var(--dg-border)] rounded-lg p-2 text-xs text-[var(--dg-text)] focus:outline-none focus:border-cyan-500"
               >
                 <option value={1}>1 - Minor / Surface</option>
                 <option value={2}>2 - Moderate / Constricted</option>
@@ -318,7 +332,7 @@ export function ReportForm({
 
           {/* Description summary */}
           <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-slate-400 block uppercase">
+            <label className="text-[11px] font-semibold text-[var(--dg-text-muted)] block uppercase">
               Field Summary / Observation
             </label>
             <input
@@ -326,22 +340,22 @@ export function ReportForm({
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="e.g. Grate clogged with plastic containers near junction"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-[var(--dg-surface-input)] border border-[var(--dg-border)] rounded-lg p-2 text-xs text-[var(--dg-text)] placeholder-[var(--dg-text-muted)] focus:outline-none focus:border-cyan-500"
             />
           </div>
 
           {/* Location details */}
-          <div className="space-y-1.5 p-3 rounded-lg bg-slate-900/40 border border-slate-800 text-xs">
-            <div className="flex items-center justify-between text-slate-300">
+          <div className="space-y-1.5 p-3 rounded-lg bg-[var(--dg-surface-muted)] border border-[var(--dg-border)] text-xs">
+            <div className="flex items-center justify-between text-[var(--dg-text)]">
               <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#38BDF8]" />
+                <MapPin className="w-3.5 h-3.5 text-cyan-500" />
                 Target Coordinates
               </span>
-              <span className="font-mono text-slate-400">
+              <span className="font-mono text-[var(--dg-text-secondary)]">
                 {lat.toFixed(4)}°N, {lng.toFixed(4)}°E
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-[var(--dg-text-muted)]">
               Linked automatically to nearest street zone within 200 metres.
             </p>
           </div>
@@ -351,7 +365,7 @@ export function ReportForm({
             <button
               type="submit"
               disabled={isSubmitting || isAnalyzing}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#38BDF8] to-[#20D6C2] hover:opacity-95 text-[#0B1220] font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-cyan-950 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 touch-target"
             >
               {isSubmitting ? (
                 <>
