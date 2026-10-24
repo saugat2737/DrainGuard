@@ -17,10 +17,10 @@
 In urban India during torrential monsoon showers, commuters find out an underpass or arterial road is inundated only when they are already stuck in bumper-to-bumper waterlogging. Meanwhile, municipal drainage and storm-water maintenance crews react sequentially to citizen phone complaints in the order received, rather than dispatching teams proactively to high-risk catchments before the rain peaks.
 
 **DrainGuard** provides:
-1. **Explainable Zone-Level Waterlogging Risk**: Street-by-street risk scoring (0–100) combining live Open-Meteo rainfall forecasts, elevation profiles, terrain slope, drainage capacity, historical hotspots, and citizen-reported blockages.
-2. **Citizen Drain Reporting with Vision AI**: Residents upload photos of blocked drains; Gemini Vision classifies the debris and severity with zero-downtime deterministic fallback.
-3. **Fastest vs. Safest Routing**: Evaluates OpenStreetMap/OSRM driving routes against live flooded zones, offering safer detours that bypass high-risk choke points.
-4. **Municipal Prioritized Inspection Queue**: Ranks drainage catchments by immediate clearance priority, enabling proactive workforce dispatch and live report lifecycle management (Open → Assigned → Cleared).
+1. **Explainable Zone-Level Waterlogging Risk**: Street-by-street risk scoring (0–100) combining live Open-Meteo rainfall forecasts, elevation depression factors, historical waterlogging frequency, and citizen blockage reports.
+2. **Citizen Drain Reporting with Vision AI**: Residents upload photos of blocked drains; Gemini Vision classifies the debris and severity with a zero-downtime deterministic fallback.
+3. **Fastest vs. Safest Routing**: Evaluates OpenStreetMap/OSRM driving routes against live risk zones, recommending a safer detour whenever an alternative route bypasses higher-risk choke points.
+4. **Municipal Prioritized Inspection Queue**: Ranks catchments by immediate clearance priority (`score DESC → open_reports DESC`), enabling proactive workforce dispatch and live report lifecycle management (`open` → `assigned` → `cleared`).
 
 ---
 
@@ -49,7 +49,7 @@ flowchart TD
     subgraph CoreEngine ["Pure TypeScript Core Logic"]
         RiskEngine["Pure Deterministic Risk Formula (src/lib/risk.ts)"]
         ReportStore["In-Memory Synchronized Store (src/lib/reports-store.ts)"]
-        SeedFixtures["Tumakuru Demonstration Fixtures (12 Zones, 8 Reports)"]
+        SeedFixtures["Tumakuru Demonstration Fixtures (10 Zones, 8 Reports)"]
     end
 
     subgraph External ["External Upstream Services"]
@@ -83,37 +83,41 @@ flowchart TD
 
 ## 🧮 Explainable Risk Model
 
-DrainGuard rejects uninterpretable "black box" flood models. Risk scores are completely deterministic, auditable, and mathematically calculated:
+DrainGuard rejects uninterpretable "black box" flood models. Risk scores are completely deterministic, auditable, and mathematically calculated per `docs/05_RISK_ENGINE.md` and implemented in [`src/lib/risk.ts`](./src/lib/risk.ts):
 
-$$\text{BaseRisk} = (0.28 \times N_{\text{rain}}) + (0.22 \times N_{\text{elev}}) + (0.16 \times N_{\text{hist}}) + (0.14 \times N_{\text{slope}}) + (0.12 \times N_{\text{block}}) + (0.08 \times N_{\text{cap}})$$
+$$\text{RawScore} = 100 \times (0.40 \times \text{rain} + 0.25 \times \text{blockage} + 0.20 \times \text{history} + 0.15 \times \text{elevation})$$
+
+### Normalized Factors
+- **$\text{rain}$**: $\min(\frac{\text{rain\_mm}}{60}, 1.0)$
+- **$\text{blockage}$**: $\min(\frac{\sum (\text{report severity} \times \text{status weight})}{6}, 1.0)$
+  - `open` report: weight **1.0**
+  - `assigned` report: weight **0.5**
+  - `cleared` report: weight **0.0** (zero weight)
+- **$\text{history}$**: $\text{zone.history\_factor}$ (normalized $0.0 \dots 1.0$, past ponding frequency)
+- **$\text{elevation}$**: $\text{zone.elevation\_factor}$ (normalized $0.0 \dots 1.0$, depression / low-lying severity)
 
 ### Rainfall Gating
-Urban street flooding is physically governed by rainfall. If rainfall is zero or minimal, risk is strictly capped:
-- $\text{rain} = 0 \text{ mm}$: $\text{FinalRisk} = \min(\text{BaseRisk}, 12)$
-- $0 < \text{rain} < 5 \text{ mm}$: $\text{FinalRisk} = \min(\text{BaseRisk}, 25)$
-- $5 \le \text{rain} < 15 \text{ mm}$: $\text{FinalRisk} = \min(\text{BaseRisk}, 45)$
-- $\text{rain} \ge 15 \text{ mm}$: $\text{FinalRisk} = \text{BaseRisk}$ (No gating)
+Urban street flooding is physically governed by rainfall. If rainfall is below $5\text{ mm}$, the raw score is attenuated by $0.3$:
+$$\text{FinalScore} = \begin{cases} \text{round}(\text{RawScore} \times 0.3) & \text{if } \text{rain\_mm} < 5 \\ \text{round}(\text{RawScore}) & \text{if } \text{rain\_mm} \ge 5 \end{cases}$$
 
-### Severity Tiers
+### Risk Thresholds
 - **Low (0–29)**: Normal drainage function.
-- **Moderate (30–49)**: Minor ponding; cautious driving.
-- **High (50–69)**: Water accumulation; two-wheelers and sedans advised to avoid.
-- **Severe (70–100)**: Critical submergence risk; road closure / emergency clearing recommended.
+- **Medium (30–59)**: Moderate ponding risk; caution advised for two-wheelers.
+- **High (60–79)**: Significant water accumulation; avoid low-lying stretches.
+- **Severe (80–100)**: Critical inundation risk; road closure and immediate municipal clearing recommended.
 
-*Inspect the complete mathematical derivation and factor breakdown in [`src/lib/risk.ts`](./src/lib/risk.ts) and on the [`/about`](./src/app/about/page.tsx) page.*
+*Inspect the complete mathematical derivation, factor rank ordering, and explanations in [`src/lib/risk.ts`](./src/lib/risk.ts) and on the [`/about`](./src/app/about/page.tsx) page.*
 
 ---
 
 ## ✨ Features Implemented & Verified
 
-- [x] **Interactive Citizen Map**: Leaflet map focused on Tumakuru, Karnataka, displaying 12 ward drainage zones with dynamic risk-colored polygons (Green / Yellow / Amber / Red) and pulsing incident beacons.
-- [x] **Live Rainfall Simulation**: Synchronized slider (0–120 mm/h) with live Open-Meteo fallback preset buttons (`0mm Clear`, `15mm Moderate`, `45mm Heavy`, `85mm Extreme`).
-- [x] **Photo Drain Inspection with Vision AI**: Citizens can upload photos or select sample test images. Gemini 1.5 Flash classifies blockage type, estimated severity, and recommended actions. If no API key is provided or the upstream service fails, an instant deterministic fallback triggers automatically.
-- [x] **Fastest vs. Safest Routing**: Computes driving directions using OSRM; if the fastest route passes through High or Severe zones, DrainGuard suggests a safer detour whenever an alternative geometry exists.
-- [x] **Municipal Operations Dashboard (`/municipal`)**: Real-time table sorting catchments by municipal priority:
-  $$\text{Priority} = (0.55 \times \text{Risk}) + (0.25 \times \text{OpenReports}) + (0.12 \times \text{Vulnerability}) + (0.08 \times \text{ClearanceUrgency})$$
-  Features live report status transitions: `OPEN` → `ASSIGNED` → `CLEARED`.
-- [x] **Methodology & Transparency (`/about`)**: Complete honest disclosure of formula weights, normalization curves, data limitations, and simulated boundaries.
+- [x] **Interactive Citizen Map**: Leaflet map focused on Tumakuru, Karnataka, displaying 10 demonstration catchment zones with dynamic risk-colored polygons (Green / Yellow / Coral / Red) and real-time inspector tooltips.
+- [x] **Live Rainfall Simulation**: Slider (0–120 mm) with real-time risk recalculation, live Open-Meteo forecast sync, and one-click reset to live forecast.
+- [x] **Citizen Drain Photo Reports with Vision AI**: Residents upload photos of clogged drains. Google Gemini 1.5 Flash classifies debris type (`plastic`, `silt`, `debris`, `construction`, `none`, `unknown`), estimated severity (1–3), and actionable summary. If no API key is configured or the upstream request fails, an instant deterministic fallback triggers automatically.
+- [x] **Fastest vs. Safest Routing**: Computes driving directions using OSRM, evaluates road-zone intersections with 30m buffering, and recommends a safer alternative whenever one exists that reduces transit risk.
+- [x] **Municipal Operations Dashboard (`/municipal`)**: Operational view sorting zones deterministically (`score DESC → open_reports DESC → zone_id ASC`) with synchronized rainfall controls and direct report lifecycle status updates (`open` → `assigned` → `cleared`).
+- [x] **Methodology & Transparency (`/about`)**: Full disclosure of formula weights, normalization curves, data limitations, and simulated boundaries.
 
 ---
 
@@ -127,8 +131,8 @@ Urban street flooding is physically governed by rainfall. If rainfall is zero or
 - **Testing**: [Vitest 2.1](https://vitest.dev/) with 40 unit and integration tests
 - **External Integrations**:
   - Weather: Open-Meteo REST API (public, no key required)
-  - Vision AI: Google Gemini 1.5 Flash REST API (server-side with mock fallback)
-  - Routing: OSRM OpenStreetMap Public Router (with fallback mock routing)
+  - Vision AI: Google Gemini 1.5 Flash REST API (server-side with deterministic fallback)
+  - Routing: OSRM OpenStreetMap Public Router (with local fallback routing)
 
 ---
 
@@ -181,10 +185,10 @@ npm run build
 ## ⚖️ Honest Limitations & Disclosures
 
 In accordance with hackathon integrity guidelines:
-1. **Simulated Urban Fixtures**: The 12 catchment zones and 8 seed blockage reports in Tumakuru are demonstration fixtures designed for Core2Code 2K26. They are not certified by the Tumakuru City Corporation (TCC).
-2. **Rule-Based Risk Model**: The risk score is an explainable weighted heuristic; it is not a calibrated hydrodynamic 2D flood simulation model.
-3. **In-Memory Volatility**: Citizen-submitted reports and status transitions are maintained in server memory. On multi-region or cold-started serverless deployments (such as Vercel), in-memory states reset upon instance recycling. In production, this layer connects directly to PostgreSQL / Supabase.
-4. **Third-Party Rate Limits**: Routing and live weather rely on public free tiers (OSRM & Open-Meteo) and gracefully fall back to local models if rate limits or network dropouts occur.
+1. **Simulated Demonstration Fixtures**: The 10 catchment zones and 8 seed blockage reports in Tumakuru are demonstration fixtures created for Core2Code 2K26. They are realistic representations designed for testing and demonstration, but are not verified surveys certified by the Tumakuru City Corporation (TCC).
+2. **Rule-Based Risk Model**: The risk score is an explainable weighted formula; it is not a calibrated hydrodynamic 2D flood simulation model.
+3. **In-Memory Report Storage**: Citizen-submitted reports and status transitions are maintained in server memory (`src/lib/reports-store.ts`). On multi-region or serverless deployments (such as Vercel), in-memory states reset upon serverless container recycling and are not guaranteed to persist across isolated instances.
+4. **Third-Party Upstream Dependencies**: Routing and live weather rely on public free tiers (OSRM & Open-Meteo) and gracefully fall back to local models if rate limits or network dropouts occur.
 
 ---
 
@@ -192,4 +196,4 @@ In accordance with hackathon integrity guidelines:
 
 - **Hackathon Organizers**: Core2Code 2K26, IEEE SIT Student Branch, and IEEE Computer Society.
 - **Data & Cartography**: [OpenStreetMap](https://www.openstreetmap.org/) contributors, [CARTO](https://carto.com/) base tiles, [Open-Meteo](https://open-meteo.com/), and [Project OSRM](https://project-osrm.org/).
-- **AI Vision**: Google Gemini 1.5 Flash API.
+- **AI Vision**: Google Gemini 1.5 Flash API (optional integration with resilient mock fallback).
