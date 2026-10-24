@@ -47,6 +47,7 @@ export interface RouteComparisonResult {
   weather_context: {
     rain_mm: number;
     is_simulated: boolean;
+    spatial_scope: string;
   };
 }
 
@@ -327,6 +328,7 @@ export function compareRoutes(
     weather_context: {
       rain_mm: effectiveRainMm,
       is_simulated: isSimulated,
+      spatial_scope: "City-Centroid Forecast (~11km Open-Meteo grid; applies uniformly across municipal ward corridors)",
     },
   };
 }

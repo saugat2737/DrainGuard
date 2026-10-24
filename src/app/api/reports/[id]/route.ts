@@ -5,12 +5,27 @@ import { updateReportStatus } from "@/lib/reports-store";
 export const dynamic = "force-dynamic";
 
 const patchSchema = z.object({
-  id: z.string().min(1),
   status: z.enum(["open", "assigned", "cleared"]),
 });
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
+    const reportId = params?.id;
+    if (!reportId || reportId.trim() === "") {
+      return NextResponse.json(
+        {
+          error: {
+            code: "INVALID_INPUT",
+            message: "Report id in path is required.",
+          },
+        },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const parseResult = patchSchema.safeParse(body);
 
@@ -19,22 +34,22 @@ export async function PATCH(request: NextRequest) {
         {
           error: {
             code: "INVALID_INPUT",
-            message: "Report id and valid status ('open', 'assigned', 'cleared') are required.",
+            message: "Valid status ('open', 'assigned', 'cleared') is required.",
           },
         },
         { status: 400 }
       );
     }
 
-    const { id, status } = parseResult.data;
-    const updated = updateReportStatus(id, status);
+    const { status } = parseResult.data;
+    const updated = updateReportStatus(reportId, status);
 
     if (!updated) {
       return NextResponse.json(
         {
           error: {
             code: "NOT_FOUND",
-            message: `Report with id '${id}' not found.`,
+            message: `Report with id '${reportId}' not found.`,
           },
         },
         { status: 404 }

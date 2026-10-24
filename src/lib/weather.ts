@@ -13,6 +13,8 @@ export interface WeatherData {
   current_rain_mm?: number;
   temperature_c?: number;
   last_updated?: string;
+  spatial_resolution?: "city_centroid";
+  coverage_area?: string;
 }
 
 const openMeteoResponseSchema = z.object({
@@ -130,11 +132,13 @@ export async function getWeatherForecast(
       source: "open-meteo",
       timeline,
       last_updated: new Date().toISOString(),
+      spatial_resolution: "city_centroid",
+      coverage_area: "Tumakuru Municipal Area (Grid Resolution ~11km)",
     };
 
     cachedWeather = result;
     return result;
-  } catch (err) {
+  } catch {
     if (cachedWeather) {
       return {
         ...cachedWeather,
@@ -148,6 +152,8 @@ export async function getWeatherForecast(
       source: "cache",
       timeline: [],
       last_updated: new Date().toISOString(),
+      spatial_resolution: "city_centroid",
+      coverage_area: "Tumakuru Municipal Area (Fallback Cache)",
     };
   }
 }
