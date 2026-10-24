@@ -9,14 +9,20 @@ import {
   FileText,
   AlertCircle,
   PlusCircle,
+  Server,
 } from "lucide-react";
 
 interface HeaderProps {
   onOpenReportModal?: () => void;
+  onOpenStatusDrawer?: () => void;
   isSimulated?: boolean;
 }
 
-export function Header({ onOpenReportModal, isSimulated = false }: HeaderProps) {
+export function Header({
+  onOpenReportModal,
+  onOpenStatusDrawer,
+  isSimulated = false,
+}: HeaderProps) {
   return (
     <header className="h-14 sm:h-16 border-b border-slate-800/80 bg-[#0B1220]/95 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between shrink-0 z-30 shadow-md">
       {/* Brand & City Context */}
@@ -50,12 +56,12 @@ export function Header({ onOpenReportModal, isSimulated = false }: HeaderProps) 
         {isSimulated ? (
           <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-            SIMULATED
+            SIMULATED RAIN
           </span>
         ) : (
           <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            LIVE METEO
+            LIVE FORECAST
           </span>
         )}
       </div>
@@ -66,11 +72,22 @@ export function Header({ onOpenReportModal, isSimulated = false }: HeaderProps) 
           <button
             onClick={onOpenReportModal}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#F43F5E] to-rose-600 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-semibold shadow-md shadow-rose-950/40 transition active:scale-95 touch-target"
-            aria-label="Report clogged drain or flooded choke point"
+            aria-label="Report blocked drain"
           >
             <PlusCircle className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden xs:inline">Report Drain</span>
             <span className="xs:hidden">Report</span>
+          </button>
+        )}
+
+        {onOpenStatusDrawer && (
+          <button
+            onClick={onOpenStatusDrawer}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#142235] hover:bg-slate-800 border border-slate-700/70 text-xs font-medium text-slate-200 hover:text-white transition shadow-sm touch-target"
+            title="Inspect Data & API Service Status"
+          >
+            <Server className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Data Status</span>
           </button>
         )}
 
@@ -86,7 +103,7 @@ export function Header({ onOpenReportModal, isSimulated = false }: HeaderProps) 
         <Link
           href="/about"
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#142235] hover:bg-slate-800 border border-slate-700/70 text-xs font-medium text-slate-300 hover:text-white transition shadow-sm touch-target"
-          title="Risk Engine Methodology & Data Disclosures"
+          title="Risk Engine Methodology & Disclosures"
         >
           <FileText className="w-3.5 h-3.5 text-slate-400" />
           <span className="hidden lg:inline">Methodology</span>

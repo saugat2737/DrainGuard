@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Car,
 } from "lucide-react";
 import { ScoredRoute, RouteComparisonResult, HazardHotspot } from "@/lib/routing";
 
@@ -26,6 +27,7 @@ interface JourneyPlannerProps {
   onSelectRouteDisplay: (type: "fastest" | "safest" | "balanced") => void;
   activeDisplayRoute: "fastest" | "safest" | "balanced";
   onSelectHotspot?: (zoneId: string) => void;
+  onOpenStatusDrawer?: () => void;
 }
 
 export const PRESET_LOCATIONS = [
@@ -42,6 +44,7 @@ export function JourneyPlanner({
   onSelectRouteDisplay,
   activeDisplayRoute,
   onSelectHotspot,
+  onOpenStatusDrawer,
 }: JourneyPlannerProps) {
   const [originIndex, setOriginIndex] = useState(0);
   const [destIndex, setDestIndex] = useState(1);
@@ -71,7 +74,7 @@ export function JourneyPlanner({
 
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.error?.message || "Routing service temporarily unavailable.");
+        throw new Error(json.error?.message || "Routing service temporarily unavailable. Please try again.");
       }
 
       setRouteResult(json.data);
@@ -79,7 +82,7 @@ export function JourneyPlanner({
       onSelectRouteDisplay(json.data.recommendation || "safest");
       setIsDetailsExpanded(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Routing computation failed.";
+      const msg = err instanceof Error ? err.message : "Unable to compute route options. Please check your connection.";
       setErrorMessage(msg);
       setRouteResult(null);
       onRoutesCalculated(null);
@@ -120,16 +123,21 @@ export function JourneyPlanner({
             <div className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-[#38BDF8]">
               <Navigation className="w-3.5 h-3.5" />
             </div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white">
-              Where to? (Rain-Aware)
-            </h2>
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+                Plan a Rain-Safe Trip
+              </h2>
+              <p className="text-[10px] text-slate-400">
+                Finds roads with lower exposure to waterlogging
+              </p>
+            </div>
           </div>
           {routeResult && (
             <button
               onClick={handleClear}
               className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition"
             >
-              <RotateCcw className="w-3 h-3" /> Reset
+              <RotateCcw className="w-3 h-3" /> Clear
             </button>
           )}
         </div>
@@ -141,7 +149,7 @@ export function JourneyPlanner({
             <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
             <div className="flex-1 min-w-0">
               <label htmlFor="origin-select" className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Pickup / Origin
+                Starting Point
               </label>
               <select
                 id="origin-select"
@@ -151,7 +159,7 @@ export function JourneyPlanner({
               >
                 {PRESET_LOCATIONS.map((loc, i) => (
                   <option key={loc.name} value={i} className="bg-[#0B1220] text-white">
-                    {loc.name}
+                    {loc.name} ({loc.desc})
                   </option>
                 ))}
               </select>
@@ -163,7 +171,7 @@ export function JourneyPlanner({
             <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
             <div className="flex-1 min-w-0">
               <label htmlFor="dest-select" className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Drop / Destination
+                Destination
               </label>
               <select
                 id="dest-select"
@@ -173,7 +181,7 @@ export function JourneyPlanner({
               >
                 {PRESET_LOCATIONS.map((loc, i) => (
                   <option key={loc.name} value={i} className="bg-[#0B1220] text-white">
-                    {loc.name}
+                    {loc.name} ({loc.desc})
                   </option>
                 ))}
               </select>
@@ -190,11 +198,11 @@ export function JourneyPlanner({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-[#0B1220]" />
-              <span>Checking Flood Corridors...</span>
+              <span>Evaluating Flood Risk on Roads...</span>
             </>
           ) : (
             <>
-              <span>Find Safe Routes</span>
+              <span>Find Safest Route</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -215,10 +223,10 @@ export function JourneyPlanner({
           <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Route Alternatives
+                Route Choices
               </span>
               <span className="text-[10px] text-slate-400">
-                ({Math.round(currentRain)} mm rain)
+                ({Math.round(currentRain)} mm rain expected)
               </span>
             </div>
             <button
@@ -230,7 +238,7 @@ export function JourneyPlanner({
             </button>
           </div>
 
-          {/* 3 Namma Yatri-style Route Selection Cards */}
+          {/* 3 Route Selection Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* 1. Fastest */}
             <div
@@ -255,7 +263,7 @@ export function JourneyPlanner({
                 </span>
               </div>
               <div className="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Risk Score:</span>
+                <span className="text-slate-400">Flood Exposure:</span>
                 <span
                   className={`font-bold tabular-nums ${
                     routeResult.fastest.risk_score >= 60
@@ -281,7 +289,7 @@ export function JourneyPlanner({
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-[#20D6C2] flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> Rain-Safer
+                  <ShieldCheck className="w-3 h-3" /> Lower Hazard
                 </span>
                 <span className="text-[10px] text-slate-400 tabular-nums">
                   {formatDistance(routeResult.safest.distance_m)}
@@ -298,7 +306,7 @@ export function JourneyPlanner({
                 )}
               </div>
               <div className="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Risk Score:</span>
+                <span className="text-slate-400">Flood Exposure:</span>
                 <span className="font-bold text-[#22C55E] tabular-nums">
                   {routeResult.safest.risk_score}/100
                 </span>
@@ -328,7 +336,7 @@ export function JourneyPlanner({
                 </span>
               </div>
               <div className="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Risk Score:</span>
+                <span className="text-slate-400">Flood Exposure:</span>
                 <span className="font-bold text-cyan-400 tabular-nums">
                   {(routeResult.balanced || routeResult.safest).risk_score}/100
                 </span>
@@ -343,7 +351,7 @@ export function JourneyPlanner({
               <div className="p-2.5 rounded-xl bg-[#0B1220] border border-slate-800 text-xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-[#38BDF8]">
                   <Info className="w-3.5 h-3.5" />
-                  <span>Recommendation Analysis</span>
+                  <span>Why This Route is Suggested</span>
                 </div>
                 <p className="text-slate-300 text-[11px] leading-relaxed">
                   {routeResult.reason}
@@ -356,7 +364,7 @@ export function JourneyPlanner({
                   <div className="flex items-center justify-between text-rose-300 font-bold text-[11px]">
                     <span className="flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      Known Hazard Corridors Along Route
+                      Known Hazard Corridors Along This Path
                     </span>
                     <span>{activeRouteData.hazard_hotspots.length} Choke Point(s)</span>
                   </div>
@@ -381,14 +389,24 @@ export function JourneyPlanner({
               ) : (
                 <div className="p-2 rounded-xl bg-emerald-950/25 border border-emerald-900/40 text-emerald-300 text-[11px] flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>This route avoids all critical severe-risk waterlogging zones.</span>
+                  <span>This route avoids all critical severe-risk waterlogging areas.</span>
                 </div>
               )}
 
               {/* Honest Traffic Notice */}
-              <div className="text-[10px] text-slate-400 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 flex items-start gap-1.5 leading-snug">
-                <span className="font-semibold text-slate-300 shrink-0">Traffic note:</span>
-                <span>{routeResult.traffic_status.note}</span>
+              <div className="text-[10px] text-slate-400 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 flex items-center justify-between leading-snug">
+                <span className="flex items-center gap-1">
+                  <Car className="w-3 h-3 text-slate-500" />
+                  <span>Live traffic is not connected; durations use baseline speeds.</span>
+                </span>
+                {onOpenStatusDrawer && (
+                  <button
+                    onClick={onOpenStatusDrawer}
+                    className="text-cyan-400 hover:underline font-semibold ml-2 shrink-0"
+                  >
+                    Details →
+                  </button>
+                )}
               </div>
             </div>
           )}

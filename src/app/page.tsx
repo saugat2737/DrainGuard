@@ -8,9 +8,11 @@ import { ZonePanel } from "@/components/ZonePanel";
 import { WeatherModal } from "@/components/WeatherModal";
 import { LayerControls } from "@/components/LayerControls";
 import { ReportForm } from "@/components/ReportForm";
+import { ServiceStatusDrawer } from "@/components/ServiceStatusDrawer";
 import { Zone, ZoneRisk } from "@/lib/types";
 import { RouteComparisonResult } from "@/lib/routing";
 import { HourlyForecastItem } from "@/lib/weather";
+import { recordWeatherSuccess, recordRoutingSuccess, recordRoutingFailure } from "@/lib/service-status";
 import {
   AlertCircle,
   RefreshCw,
@@ -21,11 +23,12 @@ import {
   Layers,
   MapPin,
   ShieldAlert,
+  Server,
 } from "lucide-react";
 
 export default function HomePage() {
   const [forecastRain, setForecastRain] = useState<number>(0);
-  const [peakHour, setPeakHour] = useState<string>("N/A");
+  const [peakHour, setPeakHour] = useState<string>("None");
   const [timeline, setTimeline] = useState<HourlyForecastItem[]>([]);
   const [currentRain, setCurrentRain] = useState<number>(0);
   const [zones, setZones] = useState<(Zone & { risk: ZoneRisk })[]>([]);
@@ -39,6 +42,7 @@ export default function HomePage() {
   // Modals & Panels state
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState<boolean>(false);
+  const [isStatusDrawerOpen, setIsStatusDrawerOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"journey" | "zone">("journey");
 
   // Mobile Bottom Sheet state ('collapsed' | 'half' | 'expanded')
@@ -72,7 +76,7 @@ export default function HomePage() {
           initialRain = weatherJson.data.rain_mm_next_3h || 0;
           setForecastRain(initialRain);
           setCurrentRain(initialRain);
-          setPeakHour(weatherJson.data.peak_hour || "N/A");
+          setPeakHour(weatherJson.data.peak_hour || "None");
           setTimeline(weatherJson.data.timeline || []);
         }
       }
@@ -85,14 +89,14 @@ export default function HomePage() {
 
     try {
       const zonesRes = await fetch(`/api/zones?rain_mm=${initialRain}`);
-      if (!zonesRes.ok) throw new Error("Failed to load street risk zones");
+      if (!zonesRes.ok) throw new Error("Unable to load street flood risk areas.");
       const zonesJson = await zonesRes.json();
       if (zonesJson.data?.zones) {
         setZones(zonesJson.data.zones);
       }
     } catch (err: unknown) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Unable to load street risk zones."
+        err instanceof Error ? err.message : "Unable to load street risk areas. Please check your network."
       );
     } finally {
       setIsZonesLoading(false);
@@ -147,7 +151,6 @@ export default function HomePage() {
 
   const selectedZone = zones.find((z) => z.id === selectedZoneId) || null;
 
-  // Active geometry to draw on map
   const activeRouteGeometry = routeResult
     ? activeDisplayRoute === "safest"
       ? routeResult.safest.geometry.coordinates
@@ -156,7 +159,6 @@ export default function HomePage() {
       : routeResult.fastest.geometry.coordinates
     : null;
 
-  // Active hazard hotspots along the current route
   const activeRouteData = routeResult
     ? activeDisplayRoute === "safest"
       ? routeResult.safest
@@ -170,6 +172,7 @@ export default function HomePage() {
       {/* Top Header */}
       <Header
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
         isSimulated={isSimulated}
       />
 
@@ -177,14 +180,14 @@ export default function HomePage() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-rose-500" />
           <div className="max-w-md">
-            <h2 className="text-lg font-bold text-white">Hydrological Service Unavailable</h2>
+            <h2 className="text-lg font-bold text-white">Service Temporarily Unavailable</h2>
             <p className="text-xs text-slate-400 mt-1">{errorMessage}</p>
           </div>
           <button
             onClick={() => initializeData()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Retry Connection
+            <RefreshCw className="w-3.5 h-3.5" /> Try Again
           </button>
         </div>
       ) : (
@@ -194,7 +197,7 @@ export default function HomePage() {
             {isZonesLoading ? (
               <div className="w-full h-full bg-[#0B1220] flex flex-col items-center justify-center text-slate-400 gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-                <span className="text-xs font-medium">Loading street zone geometries...</span>
+                <span className="text-xs font-medium">Loading street map and flood corridors...</span>
               </div>
             ) : (
               <MapWrapper
@@ -227,11 +230,12 @@ export default function HomePage() {
             forecastRain={forecastRain}
             onOpenSliderModal={() => setIsWeatherModalOpen(true)}
             onResetToForecast={handleResetToForecast}
+            onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
           />
 
           {/* Floating Desktop Panel (Left Sidebar Overlay) */}
           <div className="hidden lg:block absolute top-4 left-4 z-[450] w-[420px] max-h-[calc(100vh-6rem)] overflow-y-auto space-y-3 pb-4 pointer-events-auto">
-            {/* Tab Switcher: Journey vs Zone Inspector */}
+            {/* Tab Switcher */}
             <div className="flex items-center gap-1 bg-[#0B1220]/90 backdrop-blur-md p-1 rounded-2xl border border-slate-700/80 shadow-xl">
               <button
                 onClick={() => setActiveTab("journey")}
@@ -242,7 +246,7 @@ export default function HomePage() {
                 }`}
               >
                 <Navigation className="w-3.5 h-3.5" />
-                <span>Rain-Safe Navigation</span>
+                <span>Trip Planner</span>
               </button>
 
               <button
@@ -254,7 +258,7 @@ export default function HomePage() {
                 }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Zone Details</span>
+                <span>Road Details</span>
                 {selectedZone && (
                   <span className="w-2 h-2 rounded-full bg-cyan-400" />
                 )}
@@ -273,6 +277,7 @@ export default function HomePage() {
                   setSelectedZoneId(zoneId);
                   setActiveTab("zone");
                 }}
+                onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
               />
             ) : (
               <ZonePanel
@@ -308,10 +313,10 @@ export default function HomePage() {
               <div className="w-full px-4 flex items-center justify-between text-xs text-slate-400">
                 <span className="font-bold text-white uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                   <Navigation className="w-3 h-3 text-[#38BDF8]" />
-                  {activeTab === "journey" ? "Safe Journey" : selectedZone?.name || "Zone Info"}
+                  {activeTab === "journey" ? "Plan Safe Trip" : selectedZone?.name || "Road Details"}
                 </span>
                 <span className="text-[10px] text-slate-400">
-                  {mobileSheetState === "collapsed" ? "Tap to open" : "Tap to toggle"}
+                  {mobileSheetState === "collapsed" ? "Tap to open" : "Tap to adjust height"}
                 </span>
               </div>
             </div>
@@ -338,7 +343,7 @@ export default function HomePage() {
                       : "text-slate-400"
                   }`}
                 >
-                  Zone ({selectedZone ? selectedZone.name.slice(0, 10) + "..." : "None"})
+                  Road Info ({selectedZone ? selectedZone.name.slice(0, 10) + "..." : "None"})
                 </button>
               </div>
 
@@ -353,6 +358,7 @@ export default function HomePage() {
                     setSelectedZoneId(zoneId);
                     setActiveTab("zone");
                   }}
+                  onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
                 />
               ) : (
                 <ZonePanel
@@ -368,19 +374,19 @@ export default function HomePage() {
           {/* Floating Map Bottom-Left Legend */}
           <div className="hidden sm:flex absolute bottom-4 left-4 lg:left-[445px] z-[400] bg-[#0B1220]/90 backdrop-blur-md border border-slate-700/80 px-3.5 py-2 rounded-xl shadow-xl text-slate-200 text-xs items-center gap-3">
             <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400">
-              Risk Levels:
+              Flood Hazard:
             </span>
             <span className="flex items-center gap-1 font-medium text-[11px]">
-              <span className="w-2 h-2 rounded-full bg-[#22C55E]" /> 0-29 Low
+              <span className="w-2 h-2 rounded-full bg-[#22C55E]" /> Low (0-29)
             </span>
             <span className="flex items-center gap-1 font-medium text-[11px]">
-              <span className="w-2 h-2 rounded-full bg-[#F5B942]" /> 30-59 Med
+              <span className="w-2 h-2 rounded-full bg-[#F5B942]" /> Moderate (30-59)
             </span>
             <span className="flex items-center gap-1 font-medium text-[11px]">
-              <span className="w-2 h-2 rounded-full bg-[#F97316]" /> 60-79 High
+              <span className="w-2 h-2 rounded-full bg-[#F97316]" /> High (60-79)
             </span>
             <span className="flex items-center gap-1 font-medium text-[11px]">
-              <span className="w-2 h-2 rounded-full bg-[#EF4444]" /> 80-100 Severe
+              <span className="w-2 h-2 rounded-full bg-[#EF4444]" /> Severe (80-100)
             </span>
           </div>
         </div>
@@ -398,6 +404,12 @@ export default function HomePage() {
         isUpdatingRisk={isUpdatingRisk}
         onRainChange={handleRainChange}
         onReset={handleResetToForecast}
+      />
+
+      {/* Service Status & Transparency Drawer */}
+      <ServiceStatusDrawer
+        isOpen={isStatusDrawerOpen}
+        onClose={() => setIsStatusDrawerOpen(false)}
       />
 
       {/* Citizen Blockage Report Modal */}

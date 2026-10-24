@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   CloudRain,
   RotateCcw,
@@ -8,6 +8,7 @@ import {
   X,
   Calendar,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import { HourlyForecastItem } from "@/lib/weather";
 
@@ -50,7 +51,7 @@ export function WeatherModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="w-full max-w-md bg-[#142235] border border-slate-700/80 rounded-2xl p-5 shadow-2xl text-slate-100 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -60,7 +61,7 @@ export function WeatherModal({
             </div>
             <div>
               <h3 className="font-bold text-sm text-white">Rainfall & Weather Forecast</h3>
-              <p className="text-[11px] text-slate-400">Open-Meteo live feed + flood simulator</p>
+              <p className="text-[11px] text-slate-400">Open-Meteo forecast + flood simulation</p>
             </div>
           </div>
           <button
@@ -73,22 +74,29 @@ export function WeatherModal({
         </div>
 
         {/* Live Weather Forecast Summary */}
-        <div className="p-3 rounded-xl bg-[#0B1220] border border-slate-800 space-y-2">
+        <div className="p-3.5 rounded-xl bg-[#0B1220] border border-slate-800 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400 font-medium">Live 3-Hour Forecast:</span>
+            <span className="text-slate-300 font-medium">3-Hour Expected Rainfall:</span>
             {isWeatherLoading ? (
               <span className="flex items-center gap-1 text-slate-400">
                 <Loader2 className="w-3 h-3 animate-spin text-cyan-400" /> Syncing...
               </span>
             ) : (
               <span className="font-bold text-cyan-400 tabular-nums">
-                {forecastRain} mm / 3h
+                {forecastRain} mm
               </span>
             )}
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400 font-medium">Expected Peak Intensity:</span>
-            <span className="text-slate-200 font-semibold">{peakHour || "N/A"}</span>
+            <span className="text-slate-300 font-medium">Expected Peak Intensity:</span>
+            <span className="text-slate-200 font-semibold">{peakHour || "None"}</span>
+          </div>
+
+          <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed flex items-start gap-1.5">
+            <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+            <span>
+              Forecast rainfall applies to the Tumakuru municipal region. It is a meteorological expectation and not a measurement of street water depth.
+            </span>
           </div>
 
           {/* Hourly Timeline */}
@@ -118,9 +126,9 @@ export function WeatherModal({
         <div className="space-y-3 pt-1">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-bold text-white block">Flash Flood Simulator</span>
+              <span className="text-xs font-bold text-white block">Rainfall Simulator</span>
               <span className="text-[11px] text-slate-400">
-                Test how Tumakuru drainage reacts to extreme rain
+                Test how road drainage responds to heavy showers
               </span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -155,10 +163,10 @@ export function WeatherModal({
           <div className="text-[11px] text-slate-400">
             {isSimulated ? (
               <span className="text-amber-400 font-medium flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" /> Simulation active
+                <AlertCircle className="w-3.5 h-3.5" /> Simulation active (test mode)
               </span>
             ) : (
-              <span className="text-emerald-400 font-medium">✓ Locked to live Open-Meteo</span>
+              <span className="text-emerald-400 font-medium">✓ Using live Open-Meteo forecast</span>
             )}
           </div>
 
@@ -167,7 +175,7 @@ export function WeatherModal({
               onClick={onReset}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-[#20D6C2] font-semibold transition"
             >
-              <RotateCcw className="w-3 h-3" /> Reset to Forecast
+              <RotateCcw className="w-3 h-3" /> Reset to Live Forecast
             </button>
           )}
         </div>
