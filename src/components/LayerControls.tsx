@@ -10,7 +10,10 @@ import {
   Car,
   AlertCircle,
   Server,
+  Mountain,
+  Compass,
 } from "lucide-react";
+import { BASEMAP_PROVIDERS } from "@/lib/basemaps";
 
 interface LayerControlsProps {
   showRiskZones: boolean;
@@ -23,6 +26,8 @@ interface LayerControlsProps {
   onOpenSliderModal: () => void;
   onResetToForecast: () => void;
   onOpenStatusDrawer?: () => void;
+  basemapId: "osm_streets" | "opentopo_terrain";
+  setBasemapId: (id: "osm_streets" | "opentopo_terrain") => void;
 }
 
 export function LayerControls({
@@ -36,6 +41,8 @@ export function LayerControls({
   onOpenSliderModal,
   onResetToForecast,
   onOpenStatusDrawer,
+  basemapId,
+  setBasemapId,
 }: LayerControlsProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -106,10 +113,10 @@ export function LayerControls({
 
           {/* Dropdown Options */}
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-[#142235]/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 shadow-2xl text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 mt-2 w-72 bg-[#142235]/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 shadow-2xl text-xs space-y-3 animate-in fade-in zoom-in-95 duration-100">
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
                 <span className="font-bold text-[11px] tracking-wider uppercase text-slate-400">
-                  Map Overlays
+                  Cartography & Overlays
                 </span>
                 <button
                   onClick={() => setIsOpen(false)}
@@ -119,13 +126,44 @@ export function LayerControls({
                 </button>
               </div>
 
+              {/* Basemap Selection */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                  Basemap View
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => setBasemapId("osm_streets")}
+                    className={`p-2 rounded-xl border text-left transition flex items-center gap-1.5 ${
+                      basemapId === "osm_streets"
+                        ? "bg-slate-900 border-cyan-500 text-cyan-400 font-bold"
+                        : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <Compass className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">OSM Streets</span>
+                  </button>
+                  <button
+                    onClick={() => setBasemapId("opentopo_terrain")}
+                    className={`p-2 rounded-xl border text-left transition flex items-center gap-1.5 ${
+                      basemapId === "opentopo_terrain"
+                        ? "bg-slate-900 border-teal-500 text-teal-400 font-bold"
+                        : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <Mountain className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">OpenTopo Terrain</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Risk Zones Toggle */}
               <label className="flex items-center justify-between cursor-pointer p-1.5 rounded-lg hover:bg-slate-800/60 transition">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-[#38BDF8]" />
                   <div>
-                    <div className="font-semibold text-white">Waterlogging Corridors</div>
-                    <div className="text-[10px] text-slate-400">10 monitored street catchments</div>
+                    <div className="font-semibold text-white">Grounded Risk Corridors</div>
+                    <div className="text-[10px] text-slate-400">Basins, culverts & depressions</div>
                   </div>
                 </div>
                 <input
@@ -153,19 +191,19 @@ export function LayerControls({
                 />
               </label>
 
-              {/* Traffic Overlay (Honest state) */}
+              {/* Free-Forever Traffic Policy Notice */}
               <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-slate-300 font-medium">
                     <Car className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Live Traffic</span>
+                    <span>Live Vehicular Traffic</span>
                   </span>
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold bg-slate-800 px-1.5 py-0.5 rounded">
                     Not Connected
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug">
-                  Live vehicular congestion data is not connected. Travel times use statutory road speeds.
+                  Paid traffic APIs (Google/TomTom) are strictly prohibited under DrainGuard&apos;s zero-cost open architecture.
                 </p>
               </div>
             </div>

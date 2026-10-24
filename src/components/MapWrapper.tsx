@@ -29,6 +29,7 @@ interface MapWrapperProps {
   showReportsLayer?: boolean;
   hazardHotspots?: HazardHotspot[];
   onSelectHotspot?: (zoneId: string) => void;
+  basemapId?: "osm_streets" | "opentopo_terrain";
 }
 
 export function MapWrapper(props: MapWrapperProps) {

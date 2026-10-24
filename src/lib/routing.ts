@@ -1,5 +1,6 @@
 import * as turf from "@turf/turf";
 import { Zone, ZoneRisk } from "./types";
+import { AntecedentRainfall } from "./weather";
 
 export interface LatLng {
   lat: number;
@@ -18,6 +19,32 @@ export interface HazardHotspot {
   risk_level: string;
   reason: string;
   open_reports_count: number;
+  basis?: string;
+  geographic_justification?: string;
+}
+
+export interface RouteEvidenceCheck {
+  current_forecast_rain: {
+    status: "evaluated";
+    rain_mm: number;
+    forecast_window: string;
+    source: string;
+    resolution: string;
+  };
+  antecedent_and_history: {
+    status: "evaluated";
+    past_24h_mm: number;
+    past_7d_mm: number;
+    antecedent_source: string;
+    historical_flood_records_status: "unavailable_locally" | "available";
+    historical_note: string;
+    intersected_choke_points: number;
+  };
+  traffic_feasibility: {
+    status: "baseline_estimates_only" | "live_traffic_connected";
+    provider_name: string;
+    note: string;
+  };
 }
 
 export interface ScoredRoute {
@@ -32,6 +59,7 @@ export interface ScoredRoute {
   estimated_rain_mm?: number;
   delay_vs_fastest_s?: number;
   explanation?: string;
+  evidence_check?: RouteEvidenceCheck;
 }
 
 export interface RouteComparisonResult {
@@ -49,6 +77,7 @@ export interface RouteComparisonResult {
     is_simulated: boolean;
     spatial_scope: string;
   };
+  antecedent_context?: AntecedentRainfall;
 }
 
 /**
@@ -63,8 +92,33 @@ export function scoreRoute(
   duration_s: number,
   distance_m: number,
   zonesWithRisk: (Zone & { risk: ZoneRisk })[],
-  effectiveRainMm: number = 0
+  effectiveRainMm: number = 0,
+  antecedent?: AntecedentRainfall
 ): ScoredRoute {
+  const emptyEvidence: RouteEvidenceCheck = {
+    current_forecast_rain: {
+      status: "evaluated",
+      rain_mm: effectiveRainMm,
+      forecast_window: "Next 3 Hours",
+      source: "Open-Meteo REST API",
+      resolution: "City-Centroid Regional Grid (~11 km)",
+    },
+    antecedent_and_history: {
+      status: "evaluated",
+      past_24h_mm: antecedent?.past_24h_mm || 0,
+      past_7d_mm: antecedent?.past_7d_mm || 0,
+      antecedent_source: antecedent?.source || "unavailable",
+      historical_flood_records_status: "unavailable_locally",
+      historical_note: "Authoritative municipal street-level flood hazard maps are unreleased for Tumakuru. Showing topographically ground-truthed lowlands & citizen reports.",
+      intersected_choke_points: 0,
+    },
+    traffic_feasibility: {
+      status: "baseline_estimates_only",
+      provider_name: "OSRM Public Gateway",
+      note: "Live traffic is not connected. Travel times use baseline routing estimates.",
+    },
+  };
+
   if (routeCoords.length < 2) {
     return {
       geometry: { type: "LineString", coordinates: routeCoords },
@@ -76,6 +130,7 @@ export function scoreRoute(
       estimated_rain_mm: effectiveRainMm,
       delay_vs_fastest_s: 0,
       explanation: "Direct point coordinates.",
+      evidence_check: emptyEvidence,
     };
   }
 
@@ -93,6 +148,7 @@ export function scoreRoute(
       estimated_rain_mm: effectiveRainMm,
       delay_vs_fastest_s: 0,
       explanation: "Zero-length route.",
+      evidence_check: emptyEvidence,
     };
   }
 
@@ -123,7 +179,6 @@ export function scoreRoute(
         if (intersection) {
           zonesCrossedSet.add(zone.id);
 
-          // Estimate length of route intersecting this zone
           const lineIntersect = turf.lineSplit(routeLine, zonePoly);
           let segLength = 0;
           if (lineIntersect && lineIntersect.features.length > 0) {
@@ -150,6 +205,8 @@ export function scoreRoute(
               risk_level: zone.risk.level,
               reason: zone.risk.explanation || `${zone.risk.level.toUpperCase()} waterlogging risk zone`,
               open_reports_count: zone.risk.linked_report_ids?.length || 0,
+              basis: zone.basis,
+              geographic_justification: zone.geographic_justification,
             });
           }
         }
@@ -167,6 +224,14 @@ export function scoreRoute(
     );
   }
 
+  const evidenceCheck: RouteEvidenceCheck = {
+    ...emptyEvidence,
+    antecedent_and_history: {
+      ...emptyEvidence.antecedent_and_history,
+      intersected_choke_points: hazardHotspots.length,
+    },
+  };
+
   return {
     geometry: { type: "LineString", coordinates: routeCoords },
     duration_s: Math.round(duration_s),
@@ -177,6 +242,7 @@ export function scoreRoute(
     estimated_rain_mm: effectiveRainMm,
     delay_vs_fastest_s: 0,
     explanation: "",
+    evidence_check: evidenceCheck,
   };
 }
 
@@ -232,7 +298,8 @@ export async function fetchOSRMAlternatives(
 export function compareRoutes(
   scoredRoutes: ScoredRoute[],
   effectiveRainMm: number = 0,
-  isSimulated: boolean = false
+  isSimulated: boolean = false,
+  antecedent?: AntecedentRainfall
 ): RouteComparisonResult {
   if (scoredRoutes.length === 0) {
     throw new Error("No scored routes available for comparison.");
@@ -330,5 +397,6 @@ export function compareRoutes(
       is_simulated: isSimulated,
       spatial_scope: "City-Centroid Forecast (~11km Open-Meteo grid; applies uniformly across municipal ward corridors)",
     },
+    antecedent_context: antecedent,
   };
 }

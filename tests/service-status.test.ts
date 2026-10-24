@@ -11,7 +11,7 @@ describe("Service Status Transparency API & Diagnostic Logic", () => {
     vi.restoreAllMocks();
   });
 
-  it("1. returns standard compliant health status report with all 6 monitored subsystems", async () => {
+  it("1. returns standard compliant health status report with all monitored subsystems", async () => {
     const res = await statusGET();
     expect(res.status).toBe(200);
 
@@ -19,10 +19,11 @@ describe("Service Status Transparency API & Diagnostic Logic", () => {
     expect(json.data).toBeDefined();
     expect(json.data.environment.city).toContain("Tumakuru");
     expect(json.data.services).toBeInstanceOf(Array);
-    expect(json.data.services.length).toBe(6);
+    expect(json.data.services.length).toBeGreaterThanOrEqual(6);
 
     const serviceNames = json.data.services.map((s: any) => s.service);
     expect(serviceNames).toContain("weather");
+    expect(serviceNames).toContain("antecedent_rainfall");
     expect(serviceNames).toContain("routing");
     expect(serviceNames).toContain("traffic");
     expect(serviceNames).toContain("vision_ai");

@@ -12,6 +12,7 @@ import {
 } from "react-leaflet";
 import { Zone, ZoneRisk, RiskLevel } from "@/lib/types";
 import { HazardHotspot } from "@/lib/routing";
+import { BASEMAP_PROVIDERS } from "@/lib/basemaps";
 
 interface MapViewProps {
   zones: (Zone & { risk: ZoneRisk })[];
@@ -25,11 +26,12 @@ interface MapViewProps {
   showReportsLayer?: boolean;
   hazardHotspots?: HazardHotspot[];
   onSelectHotspot?: (zoneId: string) => void;
+  basemapId?: "osm_streets" | "opentopo_terrain";
 }
 
 const RISK_COLORS: Record<RiskLevel, { stroke: string; fill: string; label: string }> = {
   low: { stroke: "#22C55E", fill: "#22C55E", label: "Low" },
-  medium: { stroke: "#F59E0B", fill: "#F59E0B", label: "Medium" },
+  medium: { stroke: "#F5B942", fill: "#F5B942", label: "Medium" },
   high: { stroke: "#F97316", fill: "#F97316", label: "High" },
   severe: { stroke: "#EF4444", fill: "#EF4444", label: "Severe" },
 };
@@ -54,16 +56,19 @@ export default function MapView({
   showReportsLayer = true,
   hazardHotspots = [],
   onSelectHotspot,
+  basemapId = "osm_streets",
 }: MapViewProps) {
+  const activeBasemap = BASEMAP_PROVIDERS[basemapId] || BASEMAP_PROVIDERS.osm_streets;
+
   const getRouteColor = () => {
     switch (routeType) {
       case "safest":
-        return "#20D6C2"; // Aqua / safe
+        return "#20D6C2"; // Aqua
       case "balanced":
         return "#38BDF8"; // Cyan
       case "fastest":
       default:
-        return "#F59E0B"; // Amber / direct
+        return "#F59E0B"; // Amber
     }
   };
 
@@ -77,8 +82,10 @@ export default function MapView({
         zoomControl={false}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={activeBasemap.id}
+          attribution={activeBasemap.attribution}
+          url={activeBasemap.url}
+          maxZoom={activeBasemap.maxZoom}
         />
 
         <MapRecenter center={center} />
@@ -140,7 +147,7 @@ export default function MapView({
           </>
         )}
 
-        {/* Risk Zones Polygons / Polylines */}
+        {/* Grounded Flood Risk Zones Polygons / Polylines */}
         {showRiskZones &&
           zones.map((zone) => {
             const isSelected = zone.id === selectedZoneId;
@@ -173,6 +180,11 @@ export default function MapView({
                       <div className="text-slate-700">
                         Risk: <strong style={{ color: colors.stroke }}>{zone.risk.score}/100</strong> ({colors.label})
                       </div>
+                      {zone.basis && (
+                        <div className="text-[10px] text-cyan-700 font-semibold mt-0.5 capitalize">
+                          Basis: {zone.basis.replace(/_/g, " ")}
+                        </div>
+                      )}
                     </div>
                   </Tooltip>
                 </Polygon>
@@ -203,6 +215,11 @@ export default function MapView({
                       <div className="text-slate-700">
                         Risk: <strong style={{ color: colors.stroke }}>{zone.risk.score}/100</strong> ({colors.label})
                       </div>
+                      {zone.basis && (
+                        <div className="text-[10px] text-cyan-700 font-semibold mt-0.5 capitalize">
+                          Basis: {zone.basis.replace(/_/g, " ")}
+                        </div>
+                      )}
                     </div>
                   </Tooltip>
                 </Polyline>
@@ -258,6 +275,11 @@ export default function MapView({
                     <span className="block text-slate-600 mt-0.5">
                       Score: {spot.risk_score}/100 · {spot.open_reports_count} open reports
                     </span>
+                    {spot.basis && (
+                      <span className="block text-[10px] text-slate-500 italic mt-0.5">
+                        Grounding: {spot.basis.replace(/_/g, " ")}
+                      </span>
+                    )}
                   </div>
                 </Tooltip>
               </CircleMarker>

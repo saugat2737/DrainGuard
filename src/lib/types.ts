@@ -24,13 +24,19 @@ export interface GeoJSONPolygon {
   coordinates: [number, number][][]; // [[[lng, lat], ...]]
 }
 
+export type ZoneBasis = "hydrological_basin" | "road_culvert_corridor" | "lowland_depression" | "elevated_ridge";
+
 export interface Zone {
   id: string; // "Z01"
-  name: string; // "Zone near Amanikere (approx.)"
+  name: string; // "Zone near Amanikere"
   geometry: GeoJSONLineString | GeoJSONPolygon;
   elevation_factor: number; // 0..1, higher = lower-lying = riskier
   history_factor: number; // 0..1, past waterlogging frequency
-  simulated: true; // always true for seed data
+  simulated: boolean; // true for demonstration fixtures
+  basis?: ZoneBasis; // Geographic grounding rationale
+  geographic_justification?: string;
+  source_provenance?: string;
+  approx_elevation_m?: number;
 }
 
 export interface Report {

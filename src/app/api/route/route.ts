@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
 
     let effectiveRain = rain_mm;
     let computedSimulated = Boolean(is_simulated);
+    const weather = await getWeatherForecast();
+
     if (effectiveRain === undefined) {
-      const weather = await getWeatherForecast();
       effectiveRain = weather.rain_mm_next_3h;
       computedSimulated = false;
     }
@@ -91,14 +92,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Score each returned candidate route
+    // Score each returned candidate route with evidence checks
     const scoredCandidates: ScoredRoute[] = osrmRoutes.map((r) =>
-      scoreRoute(r.coordinates, r.duration, r.distance, zonesWithRisk, effectiveRain)
+      scoreRoute(r.coordinates, r.duration, r.distance, zonesWithRisk, effectiveRain, weather.antecedent)
     );
 
-    const comparison = compareRoutes(scoredCandidates, effectiveRain, computedSimulated);
+    const comparison = compareRoutes(scoredCandidates, effectiveRain, computedSimulated, weather.antecedent);
 
-    // Attach honest traffic status
+    // Attach honest traffic status (strictly free policy enforced)
     const trafficStatus = getTrafficProviderStatus();
     comparison.traffic_status = {
       is_live: trafficStatus.isLiveTrafficAvailable,

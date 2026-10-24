@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getWeatherForecast, getMapCoordinates } from "@/lib/weather";
+import { getWeatherForecast, getMapCoordinates, getAntecedentRainfall } from "@/lib/weather";
 import { getTrafficProviderStatus } from "@/lib/traffic";
 import { getAllReports } from "@/lib/reports-store";
 import zonesData from "@/data/zones.seed.json";
@@ -31,11 +31,11 @@ export async function GET() {
       name: "Open-Meteo Precipitation Forecast",
       status: isLive ? "available" : "cached",
       mode: isLive ? "live_rest" : "cache_fallback",
-      data_source: "Open-Meteo WMO NWP Grid (Free, No Key Required)",
+      data_source: "Open-Meteo WMO NWP Grid (Free, Zero-Cost Open API)",
       last_success_at: isLive ? weather.last_updated || new Date().toISOString() : audit.weather.last_success_at,
       last_checked_at: new Date().toISOString(),
       message: isLive
-        ? "Active forecast received. Note: Models provide regional precipitation, not direct street ponding depth."
+        ? "Active forecast received. Regional precipitation estimates; not confirmed street water depth."
         : "Using cached meteorological forecast.",
       coverage_or_scope: "Tumakuru Municipal Area (11 km grid resolution)",
       requires_credentials: false,
@@ -55,13 +55,46 @@ export async function GET() {
     };
   }
 
-  // 2. Routing engine status (OSRM)
+  // 2. Antecedent & Historical Weather
+  let antecedentItem: ServiceStatusItem;
+  try {
+    const antecedent = await getAntecedentRainfall();
+    antecedentItem = {
+      service: "antecedent_rainfall",
+      name: "Antecedent (Historical) Rainfall",
+      status: antecedent.is_complete ? "available" : "unavailable",
+      mode: "archive_api",
+      data_source: "Open-Meteo Historical Weather Archive (Free Open API)",
+      last_success_at: antecedent.is_complete ? new Date().toISOString() : null,
+      last_checked_at: new Date().toISOString(),
+      message: antecedent.is_complete
+        ? `Past 24h: ${antecedent.past_24h_mm} mm | Past 7d: ${antecedent.past_7d_mm} mm (${antecedent.period_start} to ${antecedent.period_end}).`
+        : "Historical rainfall archive temporarily unavailable.",
+      coverage_or_scope: "Tumakuru Municipal Grid (Daily/Hourly Historical Aggregations)",
+      requires_credentials: false,
+    };
+  } catch {
+    antecedentItem = {
+      service: "antecedent_rainfall",
+      name: "Antecedent (Historical) Rainfall",
+      status: "unavailable",
+      mode: "archive_api",
+      data_source: "Open-Meteo Archive",
+      last_success_at: null,
+      last_checked_at: new Date().toISOString(),
+      message: "Historical rainfall observations temporarily unavailable.",
+      coverage_or_scope: "Tumakuru Region",
+      requires_credentials: false,
+    };
+  }
+
+  // 3. Routing engine status (OSRM)
   const routingItem: ServiceStatusItem = {
     service: "routing",
     name: "OSRM Driving Router (OpenStreetMap)",
     status: audit.routing.status,
     mode: "public_osm_api",
-    data_source: "Project-OSRM Public Gateway (router.project-osrm.org)",
+    data_source: "Project-OSRM Public Gateway (router.project-osrm.org) - Zero-Cost Open Data",
     last_success_at: audit.routing.last_success_at,
     last_checked_at: audit.routing.last_checked_at,
     message:
@@ -72,38 +105,38 @@ export async function GET() {
     requires_credentials: false,
   };
 
-  // 3. Traffic provider status
+  // 4. Traffic provider status (Free policy enforced)
   const trafficItem: ServiceStatusItem = {
     service: "traffic",
     name: "Live Vehicular Congestion Telemetry",
     status: traffic.isLiveTrafficAvailable ? "available" : "unavailable",
-    mode: traffic.provider !== "none" ? `${traffic.provider}_live` : "unconnected",
-    data_source: traffic.provider !== "none" ? `${traffic.provider.toUpperCase()} Traffic Flow API` : "None (OSRM static speeds only)",
-    last_success_at: traffic.isLiveTrafficAvailable ? new Date().toISOString() : null,
+    mode: "strictly_zero_cost_policy",
+    data_source: "None (OSRM baseline speeds only)",
+    last_success_at: null,
     last_checked_at: new Date().toISOString(),
-    message: traffic.message,
-    coverage_or_scope: traffic.isLiveTrafficAvailable ? "Live urban traffic flow" : "Not connected",
-    requires_credentials: true,
+    message: "Live vehicular congestion data is not connected. Commercial paid APIs (Google/TomTom) are strictly prohibited under DrainGuard's zero-cost open architecture.",
+    coverage_or_scope: "Not connected",
+    requires_credentials: false,
   };
 
-  // 4. Vision AI Blockage Classifier
+  // 5. Vision AI Blockage Classifier
   const hasGemini = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== "");
   const visionItem: ServiceStatusItem = {
     service: "vision_ai",
     name: "Drain Blockage Vision Classifier",
     status: hasGemini ? "available" : "demo",
     mode: hasGemini ? "gemini_multimodal" : "deterministic_fallback",
-    data_source: hasGemini ? "Google Gemini 1.5 Flash Vision REST API" : "Rule-based heuristic fallback (Zero-downtime)",
+    data_source: hasGemini ? "Google Gemini 1.5 Flash Vision REST API (Optional Key)" : "Rule-based heuristic fallback (Zero-downtime, Zero-cost)",
     last_success_at: new Date().toISOString(),
     last_checked_at: new Date().toISOString(),
     message: hasGemini
       ? "AI visual waste & severity classifier active."
       : "Operating in zero-downtime demonstration mode. Categorizes images with deterministic classification.",
     coverage_or_scope: "Citizen-uploaded drain photographs (JPEG, PNG, WebP ≤ 5MB)",
-    requires_credentials: true,
+    requires_credentials: false,
   };
 
-  // 5. Hydrological Risk Engine
+  // 6. Hydrological Risk Engine
   const riskEngineItem: ServiceStatusItem = {
     service: "risk_engine",
     name: "Deterministic Hydro Risk Engine (docs/05)",
@@ -113,11 +146,11 @@ export async function GET() {
     last_success_at: new Date().toISOString(),
     last_checked_at: new Date().toISOString(),
     message: "Pure mathematical algorithm running locally without network dependencies or black-box ML.",
-    coverage_or_scope: `${zonesCount} monitored municipal catchments in Tumakuru`,
+    coverage_or_scope: `${zonesCount} ground-truthed basins & culverts in Tumakuru`,
     requires_credentials: false,
   };
 
-  // 6. Reports & Municipal Store
+  // 7. Reports & Municipal Store
   const reportsStoreItem: ServiceStatusItem = {
     service: "reports_store",
     name: "Civic Reports & Municipal Dispatch Store",
@@ -133,6 +166,7 @@ export async function GET() {
 
   const services: ServiceStatusItem[] = [
     weatherItem,
+    antecedentItem,
     routingItem,
     trafficItem,
     visionItem,

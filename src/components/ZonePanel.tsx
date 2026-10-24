@@ -9,6 +9,7 @@ import {
   History,
   X,
   PlusCircle,
+  Compass,
 } from "lucide-react";
 
 interface ZonePanelProps {
@@ -31,41 +32,41 @@ export function ZonePanel({
           <Layers className="w-5 h-5" />
         </div>
         <div className="space-y-1 max-w-xs">
-          <h3 className="font-bold text-white text-sm">Tap Any Zone to Inspect Risk</h3>
+          <h3 className="font-bold text-white text-sm">Tap Any Zone to Inspect Evidence</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Select a colored street polygon on the map to view its explainable flood factors, elevation basin score, and citizen blockage reports.
+            Select a grounded flood basin or road culvert corridor on the map to review its hydrological justification, elevation factor, and citizen debris reports.
           </p>
         </div>
       </div>
     );
   }
 
-  const { risk, name, id, elevation_factor, history_factor } = selectedZone;
+  const { risk, name, id, elevation_factor, history_factor, basis, geographic_justification, approx_elevation_m } = selectedZone;
 
   const getLevelBadge = (level: RiskLevel) => {
     switch (level) {
       case "low":
         return {
           bg: "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30",
-          text: "Low Risk",
+          text: "Low Hazard",
           dot: "bg-[#22C55E]",
         };
       case "medium":
         return {
           bg: "bg-[#F5B942]/15 text-[#F5B942] border-[#F5B942]/30",
-          text: "Medium Risk",
+          text: "Moderate Hazard",
           dot: "bg-[#F5B942]",
         };
       case "high":
         return {
           bg: "bg-[#F97316]/15 text-[#F97316] border-[#F97316]/30",
-          text: "High Risk",
+          text: "High Hazard",
           dot: "bg-[#F97316]",
         };
       case "severe":
         return {
           bg: "bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444]/40",
-          text: "Severe Risk",
+          text: "Critical Hazard",
           dot: "bg-[#EF4444]",
         };
     }
@@ -121,7 +122,7 @@ export function ZonePanel({
       <div className="flex items-center justify-between p-3 rounded-xl bg-[#0B1220] border border-slate-800">
         <div>
           <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block">
-            Calculated Risk
+            Calculated Exposure
           </span>
           <span className="text-xs text-slate-400">Rainfall: {Math.round(currentRain)} mm</span>
         </div>
@@ -132,6 +133,24 @@ export function ZonePanel({
           </div>
         </div>
       </div>
+
+      {/* Geographic & Hydrological Grounding Basis */}
+      {basis && (
+        <div className="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-800/50 text-xs space-y-1">
+          <div className="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px] uppercase tracking-wider">
+            <Compass className="w-3.5 h-3.5" />
+            <span>Geographic Grounding: {basis.replace(/_/g, " ")}</span>
+          </div>
+          <p className="text-[11px] text-slate-300 leading-relaxed">
+            {geographic_justification || "Ground-truthed corridor based on municipal waterbodies and terrain contours."}
+          </p>
+          {approx_elevation_m && (
+            <span className="text-[10px] text-cyan-300/80 font-mono block pt-0.5">
+              Approx. Surface Elevation: ~{approx_elevation_m}m MSL
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Narrative Explanation */}
       <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300 leading-relaxed">
@@ -171,11 +190,11 @@ export function ZonePanel({
       {/* Elevation & History metadata */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="p-2 rounded-lg bg-slate-900/70 border border-slate-800">
-          <span className="text-[10px] text-slate-400 block">Depression / Inversion</span>
+          <span className="text-[10px] text-slate-400 block">Depression Factor</span>
           <span className="font-bold text-white">{Math.round(elevation_factor * 100)}%</span>
         </div>
         <div className="p-2 rounded-lg bg-slate-900/70 border border-slate-800">
-          <span className="text-[10px] text-slate-400 block">Historical Ponding</span>
+          <span className="text-[10px] text-slate-400 block">Historical Ponding Frequency</span>
           <span className="font-bold text-white">{Math.round(history_factor * 100)}%</span>
         </div>
       </div>

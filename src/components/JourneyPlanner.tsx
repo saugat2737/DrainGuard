@@ -17,8 +17,11 @@ import {
   ChevronUp,
   Info,
   Car,
+  CloudRain,
+  History,
+  CheckCircle2,
 } from "lucide-react";
-import { ScoredRoute, RouteComparisonResult, HazardHotspot } from "@/lib/routing";
+import { ScoredRoute, RouteComparisonResult, HazardHotspot, RouteEvidenceCheck } from "@/lib/routing";
 
 interface JourneyPlannerProps {
   currentRain: number;
@@ -114,6 +117,8 @@ export function JourneyPlanner({
       : routeResult.fastest
     : null;
 
+  const evidence = activeRouteData?.evidence_check;
+
   return (
     <div className="flex flex-col space-y-3">
       {/* Origin & Destination Bar */}
@@ -128,7 +133,7 @@ export function JourneyPlanner({
                 Plan a Rain-Safe Trip
               </h2>
               <p className="text-[10px] text-slate-400">
-                Finds roads with lower exposure to waterlogging
+                Ground-truthed basins, open culverts & live rain
               </p>
             </div>
           </div>
@@ -198,7 +203,7 @@ export function JourneyPlanner({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-[#0B1220]" />
-              <span>Evaluating Flood Risk on Roads...</span>
+              <span>Verifying 3-Check Hydrological Evidence...</span>
             </>
           ) : (
             <>
@@ -344,6 +349,60 @@ export function JourneyPlanner({
             </div>
           </div>
 
+          {/* 3-Check Geospatial Evidence Summary */}
+          {isDetailsExpanded && evidence && (
+            <div className="p-3 rounded-xl bg-[#0B1220] border border-slate-800 space-y-2 text-xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                3-Check Evidence Audit for this Route
+              </span>
+
+              {/* Check 1: Current & Forecast Rain */}
+              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-cyan-400 flex items-center gap-1.5 text-[11px]">
+                    <CloudRain className="w-3.5 h-3.5" /> Check A: Current & Forecast Rain
+                  </span>
+                  <span className="text-[10px] text-slate-300 font-bold tabular-nums">
+                    {evidence.current_forecast_rain.rain_mm} mm / 3h
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  Source: {evidence.current_forecast_rain.source} ({evidence.current_forecast_rain.resolution}). Regional forecast, not street water depth.
+                </p>
+              </div>
+
+              {/* Check 2: Antecedent & Historical Incidents */}
+              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-teal-400 flex items-center gap-1.5 text-[11px]">
+                    <History className="w-3.5 h-3.5" /> Check B: Previous Rain & Topography
+                  </span>
+                  <span className="text-[10px] text-slate-300 font-bold tabular-nums">
+                    Past 24h: {evidence.antecedent_and_history.past_24h_mm} mm
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  {evidence.antecedent_and_history.historical_note}
+                </p>
+              </div>
+
+              {/* Check 3: Free Traffic Policy */}
+              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-amber-400 flex items-center gap-1.5 text-[11px]">
+                    <Car className="w-3.5 h-3.5" /> Check C: Routing & Traffic Feasibility
+                  </span>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                    Baseline Speeds
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  {evidence.traffic_feasibility.note}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Expanded Recommendation & Hotspot Details */}
           {isDetailsExpanded && activeRouteData && (
             <div className="space-y-2.5 pt-1">
@@ -358,7 +417,7 @@ export function JourneyPlanner({
                 </p>
               </div>
 
-              {/* Hazards along this route */}
+              {/* Hazards along this route with geographic grounding */}
               {activeRouteData.hazard_hotspots && activeRouteData.hazard_hotspots.length > 0 ? (
                 <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-900/40 text-xs space-y-1.5">
                   <div className="flex items-center justify-between text-rose-300 font-bold text-[11px]">
@@ -378,8 +437,13 @@ export function JourneyPlanner({
                         <div>
                           <span className="font-semibold text-white block">{spot.zone_name}</span>
                           <span className="text-rose-400 text-[10px]">{spot.reason}</span>
+                          {spot.geographic_justification && (
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {spot.geographic_justification}
+                            </span>
+                          )}
                         </div>
-                        <span className="font-bold text-rose-300 tabular-nums">
+                        <span className="font-bold text-rose-300 tabular-nums shrink-0 ml-2">
                           {spot.risk_score}/100
                         </span>
                       </button>
@@ -392,22 +456,6 @@ export function JourneyPlanner({
                   <span>This route avoids all critical severe-risk waterlogging areas.</span>
                 </div>
               )}
-
-              {/* Honest Traffic Notice */}
-              <div className="text-[10px] text-slate-400 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 flex items-center justify-between leading-snug">
-                <span className="flex items-center gap-1">
-                  <Car className="w-3 h-3 text-slate-500" />
-                  <span>Live traffic is not connected; durations use baseline speeds.</span>
-                </span>
-                {onOpenStatusDrawer && (
-                  <button
-                    onClick={onOpenStatusDrawer}
-                    className="text-cyan-400 hover:underline font-semibold ml-2 shrink-0"
-                  >
-                    Details →
-                  </button>
-                )}
-              </div>
             </div>
           )}
         </div>

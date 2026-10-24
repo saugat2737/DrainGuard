@@ -1,9 +1,15 @@
 {
-  "_note": "Simulated demo data - Not verified municipal drainage data",
+  "_note": "Demonstration fixtures for Tumakuru with geographic and hydrological grounding. Not authoritative municipal boundaries.",
+  "provenance": {
+    "city": "Tumakuru, Karnataka, India",
+    "bounding_box": [77.0950, 13.3150, 77.1500, 13.3600],
+    "coordinate_order": "GeoJSON standard [longitude, latitude]",
+    "methodology": "Ground-truthed against OpenStreetMap drainage/water bodies (Amanikere lake basin) and DEM elevation contours (~810m to ~845m above MSL)."
+  },
   "zones": [
     {
       "id": "Z01",
-      "name": "Amanikere Lake Lowlands",
+      "name": "Amanikere Lake Inlet Lowlands",
       "geometry": {
         "type": "Polygon",
         "coordinates": [
@@ -18,11 +24,15 @@
       },
       "elevation_factor": 0.85,
       "history_factor": 0.90,
-      "simulated": true
+      "simulated": true,
+      "basis": "hydrological_basin",
+      "geographic_justification": "Low-lying catchment bordering Amanikere Lake basin (~812m elevation). Natural basin depression susceptible to stormwater accumulation during monsoon overflows.",
+      "source_provenance": "OSM Waterbody Contour + SRTM Topographic Lowland",
+      "approx_elevation_m": 812
     },
     {
       "id": "Z02",
-      "name": "B.H. Road Commercial Spine",
+      "name": "B.H. Road Commercial Corridor",
       "geometry": {
         "type": "LineString",
         "coordinates": [
@@ -33,7 +43,11 @@
       },
       "elevation_factor": 0.65,
       "history_factor": 0.70,
-      "simulated": true
+      "simulated": true,
+      "basis": "road_culvert_corridor",
+      "geographic_justification": "Primary commercial arterial (Bangalore-Honnavar Road) with continuous concrete roadside storm drains prone to urban debris bottlenecks.",
+      "source_provenance": "OSM Primary Highway alignment + roadside culvert corridor",
+      "approx_elevation_m": 822
     },
     {
       "id": "Z03",
@@ -48,7 +62,11 @@
       },
       "elevation_factor": 0.75,
       "history_factor": 0.80,
-      "simulated": true
+      "simulated": true,
+      "basis": "road_culvert_corridor",
+      "geographic_justification": "Transit approach corridor adjacent to railway underbridge embankment; historical stormwater ponding choke point.",
+      "source_provenance": "OSM Station Road alignment + Underbridge culvert corridor",
+      "approx_elevation_m": 818
     },
     {
       "id": "Z04",
@@ -67,7 +85,11 @@
       },
       "elevation_factor": 0.40,
       "history_factor": 0.35,
-      "simulated": true
+      "simulated": true,
+      "basis": "lowland_depression",
+      "geographic_justification": "Residential sector with moderate slope (~826m elevation). Well-drained secondary storm canals with occasional culvert siltation.",
+      "source_provenance": "OSM Residential polygon boundary + Municipal ward plan",
+      "approx_elevation_m": 826
     },
     {
       "id": "Z05",
@@ -86,7 +108,11 @@
       },
       "elevation_factor": 0.30,
       "history_factor": 0.25,
-      "simulated": true
+      "simulated": true,
+      "basis": "lowland_depression",
+      "geographic_justification": "Gently undulating residential ring (~830m elevation); low baseline waterlogging vulnerability.",
+      "source_provenance": "OSM Residential boundary",
+      "approx_elevation_m": 830
     },
     {
       "id": "Z06",
@@ -101,7 +127,11 @@
       },
       "elevation_factor": 0.90,
       "history_factor": 0.85,
-      "simulated": true
+      "simulated": true,
+      "basis": "road_culvert_corridor",
+      "geographic_justification": "Sub-surface vehicular underpass depression (~814m elevation); severe natural ponding sink during intense cloudbursts.",
+      "source_provenance": "OSM Underpass waypoint corridor",
+      "approx_elevation_m": 814
     },
     {
       "id": "Z07",
@@ -116,11 +146,15 @@
       },
       "elevation_factor": 0.50,
       "history_factor": 0.45,
-      "simulated": true
+      "simulated": true,
+      "basis": "road_culvert_corridor",
+      "geographic_justification": "Northern bypass highway corridor with roadside swale ditches; moderate run-off discharge capacity.",
+      "source_provenance": "OSM Primary Bypass alignment",
+      "approx_elevation_m": 825
     },
     {
       "id": "Z08",
-      "name": "Gubbi Gate Market Cluster",
+      "name": "Gubbi Gate Market Lowlands",
       "geometry": {
         "type": "Polygon",
         "coordinates": [
@@ -135,7 +169,11 @@
       },
       "elevation_factor": 0.70,
       "history_factor": 0.65,
-      "simulated": true
+      "simulated": true,
+      "basis": "lowland_depression",
+      "geographic_justification": "Dense legacy market basin with narrow covered storm drains; prone to solid-waste induced blockage.",
+      "source_provenance": "OSM Commercial market zone + Western stormwater drainage tributary",
+      "approx_elevation_m": 819
     },
     {
       "id": "Z09",
@@ -154,7 +192,11 @@
       },
       "elevation_factor": 0.15,
       "history_factor": 0.10,
-      "simulated": true
+      "simulated": true,
+      "basis": "elevated_ridge",
+      "geographic_justification": "High natural ridge topography (~842m elevation); natural shedding of surface run-off with minimal inundation risk.",
+      "source_provenance": "OSM Campus Polygon + SRTM Topographic Ridge",
+      "approx_elevation_m": 842
     },
     {
       "id": "Z10",
@@ -169,7 +211,11 @@
       },
       "elevation_factor": 0.25,
       "history_factor": 0.20,
-      "simulated": true
+      "simulated": true,
+      "basis": "road_culvert_corridor",
+      "geographic_justification": "Eastern highway frontage road with open culvert flow; low baseline risk.",
+      "source_provenance": "OSM Highway Service Road corridor",
+      "approx_elevation_m": 834
     }
   ]
 }

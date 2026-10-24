@@ -5,6 +5,16 @@ export interface HourlyForecastItem {
   rain_mm: number;
 }
 
+export interface AntecedentRainfall {
+  past_24h_mm: number;
+  past_72h_mm: number;
+  past_7d_mm: number;
+  source: "open-meteo-historical" | "cache" | "unavailable";
+  period_start: string;
+  period_end: string;
+  is_complete: boolean;
+}
+
 export interface WeatherData {
   rain_mm_next_3h: number;
   peak_hour: string;
@@ -15,6 +25,7 @@ export interface WeatherData {
   last_updated?: string;
   spatial_resolution?: "city_centroid";
   coverage_area?: string;
+  antecedent?: AntecedentRainfall;
 }
 
 const openMeteoResponseSchema = z.object({
@@ -25,6 +36,7 @@ const openMeteoResponseSchema = z.object({
 });
 
 let cachedWeather: WeatherData | null = null;
+let cachedAntecedent: AntecedentRainfall | null = null;
 
 export const DEFAULT_MAP_CENTER = {
   lat: 13.3392,
@@ -44,10 +56,96 @@ export function getMapCoordinates(): { lat: number; lng: number } {
 
 export function resetWeatherCache(): void {
   cachedWeather = null;
+  cachedAntecedent = null;
 }
 
 export function setCachedWeather(data: WeatherData): void {
   cachedWeather = data;
+}
+
+/**
+ * Fetch Antecedent (Historical) Rainfall for previous 7 days using Open-Meteo Historical Weather API.
+ * Free non-commercial open data API, no key required.
+ */
+export async function getAntecedentRainfall(
+  fetchFn: typeof fetch = fetch
+): Promise<AntecedentRainfall> {
+  if (cachedAntecedent) {
+    return cachedAntecedent;
+  }
+
+  const { lat, lng } = getMapCoordinates();
+  const now = new Date();
+  const endDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Yesterday
+  const startDate = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000); // 7 days prior
+
+  const startStr = startDate.toISOString().split("T")[0];
+  const endStr = endDate.toISOString().split("T")[0];
+
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${startStr}&end_date=${endStr}&hourly=precipitation&timezone=auto`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const response = await fetchFn(url, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Open-Meteo Archive HTTP error: ${response.status}`);
+    }
+
+    const rawData = await response.json();
+    const parsed = openMeteoResponseSchema.safeParse(rawData);
+
+    if (!parsed.success) {
+      throw new Error("Invalid Open-Meteo Archive response shape");
+    }
+
+    const { precipitation } = parsed.data.hourly;
+    if (precipitation.length === 0) {
+      throw new Error("Empty archive precipitation array");
+    }
+
+    // Accumulate past 24h (last 24 hours in archive)
+    const last24hSlice = precipitation.slice(-24);
+    const past_24h_mm = Math.round(last24hSlice.reduce((sum, v) => sum + Math.max(0, v), 0) * 10) / 10;
+
+    // Accumulate past 72h (last 72 hours in archive)
+    const last72hSlice = precipitation.slice(-72);
+    const past_72h_mm = Math.round(last72hSlice.reduce((sum, v) => sum + Math.max(0, v), 0) * 10) / 10;
+
+    // Accumulate total 7 days
+    const past_7d_mm = Math.round(precipitation.reduce((sum, v) => sum + Math.max(0, v), 0) * 10) / 10;
+
+    const result: AntecedentRainfall = {
+      past_24h_mm,
+      past_72h_mm,
+      past_7d_mm,
+      source: "open-meteo-historical",
+      period_start: startStr,
+      period_end: endStr,
+      is_complete: true,
+    };
+
+    cachedAntecedent = result;
+    return result;
+  } catch {
+    // If archive fails, return honest unavailable status without fabricating 0mm
+    return {
+      past_24h_mm: 0,
+      past_72h_mm: 0,
+      past_7d_mm: 0,
+      source: "unavailable",
+      period_start: startStr,
+      period_end: endStr,
+      is_complete: false,
+    };
+  }
 }
 
 export async function getWeatherForecast(
@@ -126,6 +224,14 @@ export async function getWeatherForecast(
       }
     }
 
+    // Attempt to enrich with antecedent rainfall
+    let antecedent: AntecedentRainfall | undefined;
+    try {
+      antecedent = await getAntecedentRainfall(fetchFn);
+    } catch {
+      antecedent = undefined;
+    }
+
     const result: WeatherData = {
       rain_mm_next_3h,
       peak_hour,
@@ -134,6 +240,7 @@ export async function getWeatherForecast(
       last_updated: new Date().toISOString(),
       spatial_resolution: "city_centroid",
       coverage_area: "Tumakuru Municipal Area (Grid Resolution ~11km)",
+      antecedent,
     };
 
     cachedWeather = result;

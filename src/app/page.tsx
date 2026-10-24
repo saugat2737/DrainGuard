@@ -12,7 +12,6 @@ import { ServiceStatusDrawer } from "@/components/ServiceStatusDrawer";
 import { Zone, ZoneRisk } from "@/lib/types";
 import { RouteComparisonResult } from "@/lib/routing";
 import { HourlyForecastItem } from "@/lib/weather";
-import { recordWeatherSuccess, recordRoutingSuccess, recordRoutingFailure } from "@/lib/service-status";
 import {
   AlertCircle,
   RefreshCw,
@@ -48,9 +47,10 @@ export default function HomePage() {
   // Mobile Bottom Sheet state ('collapsed' | 'half' | 'expanded')
   const [mobileSheetState, setMobileSheetState] = useState<"half" | "collapsed" | "expanded">("half");
 
-  // Layers state
+  // Layers state & Basemap
   const [showRiskZones, setShowRiskZones] = useState<boolean>(true);
   const [showReportsLayer, setShowReportsLayer] = useState<boolean>(true);
+  const [basemapId, setBasemapId] = useState<"osm_streets" | "opentopo_terrain">("osm_streets");
 
   // Routing state
   const [routeResult, setRouteResult] = useState<RouteComparisonResult | null>(null);
@@ -197,7 +197,7 @@ export default function HomePage() {
             {isZonesLoading ? (
               <div className="w-full h-full bg-[#0B1220] flex flex-col items-center justify-center text-slate-400 gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-                <span className="text-xs font-medium">Loading street map and flood corridors...</span>
+                <span className="text-xs font-medium">Loading cartography and flood evidence...</span>
               </div>
             ) : (
               <MapWrapper
@@ -215,6 +215,7 @@ export default function HomePage() {
                   setSelectedZoneId(zoneId);
                   setActiveTab("zone");
                 }}
+                basemapId={basemapId}
               />
             )}
           </div>
@@ -231,6 +232,8 @@ export default function HomePage() {
             onOpenSliderModal={() => setIsWeatherModalOpen(true)}
             onResetToForecast={handleResetToForecast}
             onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
+            basemapId={basemapId}
+            setBasemapId={setBasemapId}
           />
 
           {/* Floating Desktop Panel (Left Sidebar Overlay) */}
