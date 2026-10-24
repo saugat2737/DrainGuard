@@ -28,7 +28,7 @@ export function Header({
   const { resolvedTheme } = useTheme();
 
   return (
-    <header className="h-14 sm:h-16 border-b border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md px-3 sm:px-6 flex items-center justify-between shrink-0 z-30 shadow-sm transition-colors">
+    <header className="h-14 sm:h-16 border-b border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md px-3 sm:px-6 flex items-center justify-between shrink-0 relative z-[800] shadow-sm transition-colors">
       {/* Brand & City Context */}
       <div className="flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2.5 group">

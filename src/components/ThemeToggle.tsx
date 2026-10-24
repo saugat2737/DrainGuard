@@ -38,7 +38,7 @@ export function ThemeToggle() {
   ];
 
   return (
-    <div ref={containerRef} className="relative inline-block text-left">
+    <div ref={containerRef} className="relative inline-block text-left z-[850]">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -58,7 +58,7 @@ export function ThemeToggle() {
         <div
           role="menu"
           aria-orientation="vertical"
-          className="absolute right-0 mt-1.5 w-36 rounded-xl border border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md shadow-2xl p-1 z-[700] text-xs space-y-0.5 animate-in fade-in duration-100"
+          className="absolute right-0 mt-1.5 w-36 rounded-xl border border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md shadow-2xl p-1 z-[850] text-xs space-y-0.5 animate-in fade-in duration-100"
         >
           {options.map((opt) => (
             <button

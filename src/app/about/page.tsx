@@ -21,7 +21,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--dg-page-bg)] text-[var(--dg-text)] transition-colors">
       {/* Top Header */}
-      <header className="h-14 sm:h-16 border-b border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-sm transition-colors">
+      <header className="h-14 sm:h-16 border-b border-[var(--dg-border)] bg-[var(--dg-surface-card)] backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 relative z-[800] shadow-sm transition-colors">
         <div className="flex items-center gap-3">
           <Link
             href="/"
