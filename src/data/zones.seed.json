@@ -1,0 +1,175 @@
+{
+  "_note": "Simulated demo data - Not verified municipal drainage data",
+  "zones": [
+    {
+      "id": "Z01",
+      "name": "Amanikere Lake Lowlands",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.1080, 13.3420],
+            [77.1140, 13.3440],
+            [77.1160, 13.3390],
+            [77.1100, 13.3370],
+            [77.1080, 13.3420]
+          ]
+        ]
+      },
+      "elevation_factor": 0.85,
+      "history_factor": 0.90,
+      "simulated": true
+    },
+    {
+      "id": "Z02",
+      "name": "B.H. Road Commercial Spine",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [77.1090, 13.3370],
+          [77.1130, 13.3385],
+          [77.1180, 13.3400]
+        ]
+      },
+      "elevation_factor": 0.65,
+      "history_factor": 0.70,
+      "simulated": true
+    },
+    {
+      "id": "Z03",
+      "name": "Tumakuru Railway Station Road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [77.1170, 13.3450],
+          [77.1210, 13.3460],
+          [77.1240, 13.3480]
+        ]
+      },
+      "elevation_factor": 0.75,
+      "history_factor": 0.80,
+      "simulated": true
+    },
+    {
+      "id": "Z04",
+      "name": "Siddaganga Extension Crossings",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.1050, 13.3310],
+            [77.1110, 13.3325],
+            [77.1120, 13.3280],
+            [77.1060, 13.3270],
+            [77.1050, 13.3310]
+          ]
+        ]
+      },
+      "elevation_factor": 0.40,
+      "history_factor": 0.35,
+      "simulated": true
+    },
+    {
+      "id": "Z05",
+      "name": "Ashoka Nagar Residential Ring",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.1190, 13.3340],
+            [77.1250, 13.3350],
+            [77.1260, 13.3310],
+            [77.1200, 13.3300],
+            [77.1190, 13.3340]
+          ]
+        ]
+      },
+      "elevation_factor": 0.30,
+      "history_factor": 0.25,
+      "simulated": true
+    },
+    {
+      "id": "Z06",
+      "name": "M.G. Road Underpass Junction",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [77.1130, 13.3350],
+          [77.1155, 13.3365],
+          [77.1175, 13.3375]
+        ]
+      },
+      "elevation_factor": 0.90,
+      "history_factor": 0.85,
+      "simulated": true
+    },
+    {
+      "id": "Z07",
+      "name": "Batawadi Bypass Corridor",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [77.1250, 13.3510],
+          [77.1300, 13.3530],
+          [77.1340, 13.3550]
+        ]
+      },
+      "elevation_factor": 0.50,
+      "history_factor": 0.45,
+      "simulated": true
+    },
+    {
+      "id": "Z08",
+      "name": "Gubbi Gate Market Cluster",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.1000, 13.3380],
+            [77.1040, 13.3400],
+            [77.1050, 13.3360],
+            [77.1010, 13.3350],
+            [77.1000, 13.3380]
+          ]
+        ]
+      },
+      "elevation_factor": 0.70,
+      "history_factor": 0.65,
+      "simulated": true
+    },
+    {
+      "id": "Z09",
+      "name": "University Campus Elevated Ridge",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.1280, 13.3240],
+            [77.1340, 13.3260],
+            [77.1350, 13.3210],
+            [77.1290, 13.3190],
+            [77.1280, 13.3240]
+          ]
+        ]
+      },
+      "elevation_factor": 0.15,
+      "history_factor": 0.10,
+      "simulated": true
+    },
+    {
+      "id": "Z10",
+      "name": "Kyathsandra Service Road Approach",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [77.1350, 13.3280],
+          [77.1400, 13.3295],
+          [77.1450, 13.3310]
+        ]
+      },
+      "elevation_factor": 0.25,
+      "history_factor": 0.20,
+      "simulated": true
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "_note": "Simulated demo data - Not verified municipal drainage data",
+  "reports": [
+    {
+      "id": "rep-001",
+      "lat": 13.3415,
+      "lng": 77.1120,
+      "zone_id": "Z01",
+      "photo_url": null,
+      "blockage_type": "plastic",
+      "severity": 3,
+      "summary": "Storm drain clogged with plastic bottles and polythene waste near lake inlet.",
+      "status": "open",
+      "source": "seed",
+      "created_at": "2026-10-24T08:30:00.000Z"
+    },
+    {
+      "id": "rep-002",
+      "lat": 13.3400,
+      "lng": 77.1140,
+      "zone_id": "Z01",
+      "photo_url": null,
+      "blockage_type": "silt",
+      "severity": 2,
+      "summary": "Dense mud and road silt accumulation blocking culvert flow.",
+      "status": "open",
+      "source": "seed",
+      "created_at": "2026-10-24T09:15:00.000Z"
+    },
+    {
+      "id": "rep-003",
+      "lat": 13.3360,
+      "lng": 77.1160,
+      "zone_id": "Z06",
+      "photo_url": null,
+      "blockage_type": "debris",
+      "severity": 3,
+      "summary": "Underpass entrance drain blocked with tree branches and roadside rubbish.",
+      "status": "open",
+      "source": "seed",
+      "created_at": "2026-10-24T10:00:00.000Z"
+    },
+    {
+      "id": "rep-004",
+      "lat": 13.3465,
+      "lng": 77.1215,
+      "zone_id": "Z03",
+      "photo_url": null,
+      "blockage_type": "plastic",
+      "severity": 2,
+      "summary": "Open gutter choked with discarded commercial packaging.",
+      "status": "assigned",
+      "source": "seed",
+      "created_at": "2026-10-24T10:45:00.000Z"
+    },
+    {
+      "id": "rep-005",
+      "lat": 13.3380,
+      "lng": 77.1135,
+      "zone_id": "Z02",
+      "photo_url": null,
+      "blockage_type": "silt",
+      "severity": 2,
+      "summary": "Heavy road sediment reducing main drain capacity by half.",
+      "status": "open",
+      "source": "seed",
+      "created_at": "2026-10-24T11:20:00.000Z"
+    },
+    {
+      "id": "rep-006",
+      "lat": 13.3375,
+      "lng": 77.1030,
+      "zone_id": "Z08",
+      "photo_url": null,
+      "blockage_type": "construction",
+      "severity": 3,
+      "summary": "Concrete rubble and discarded sand choking market outlet drain.",
+      "status": "open",
+      "source": "seed",
+      "created_at": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "rep-007",
+      "lat": 13.3368,
+      "lng": 77.1165,
+      "zone_id": "Z06",
+      "photo_url": null,
+      "blockage_type": "plastic",
+      "severity": 1,
+      "summary": "Minor surface plastic cups on drain grate.",
+      "status": "cleared",
+      "source": "seed",
+      "created_at": "2026-10-24T07:15:00.000Z"
+    },
+    {
+      "id": "rep-008",
+      "lat": 13.3525,
+      "lng": 77.1290,
+      "zone_id": "Z07",
+      "photo_url": null,
+      "blockage_type": "debris",
+      "severity": 1,
+      "summary": "Fallen leaves and twigs covering curb inlet.",
+      "status": "open",
+      "source": "seed",
+      "created_at": "2026-10-24T13:10:00.000Z"
+    }
+  ]
+}
