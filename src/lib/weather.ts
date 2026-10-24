@@ -1,9 +1,18 @@
 import { z } from "zod";
 
+export interface HourlyForecastItem {
+  time: string; // ISO string
+  rain_mm: number;
+}
+
 export interface WeatherData {
   rain_mm_next_3h: number;
   peak_hour: string;
   source: "open-meteo" | "cache";
+  timeline?: HourlyForecastItem[];
+  current_rain_mm?: number;
+  temperature_c?: number;
+  last_updated?: string;
 }
 
 const openMeteoResponseSchema = z.object({
@@ -73,10 +82,19 @@ export async function getWeatherForecast(
     }
 
     // Determine precipitation over next 3 hours
-    // If times are aligned with now, take the first 3 available hourly slots
     const next3hSlice = precipitation.slice(0, 3);
     const rainSumNext3h = next3hSlice.reduce((sum, val) => sum + Math.max(0, val), 0);
     const rain_mm_next_3h = Math.round(rainSumNext3h * 10) / 10;
+
+    // Build timeline for next 6 hours
+    const timeline: HourlyForecastItem[] = [];
+    const timelineSlots = Math.min(6, time.length, precipitation.length);
+    for (let i = 0; i < timelineSlots; i++) {
+      timeline.push({
+        time: time[i],
+        rain_mm: Math.round((precipitation[i] || 0) * 10) / 10,
+      });
+    }
 
     // Determine peak precipitation hour within the next 24 hours
     const next24hPrecip = precipitation.slice(0, 24);
@@ -110,12 +128,13 @@ export async function getWeatherForecast(
       rain_mm_next_3h,
       peak_hour,
       source: "open-meteo",
+      timeline,
+      last_updated: new Date().toISOString(),
     };
 
     cachedWeather = result;
     return result;
   } catch (err) {
-    // Return cached forecast if available
     if (cachedWeather) {
       return {
         ...cachedWeather,
@@ -123,11 +142,12 @@ export async function getWeatherForecast(
       };
     }
 
-    // Safe zero-rain fallback
     return {
       rain_mm_next_3h: 0,
       peak_hour: "N/A",
       source: "cache",
+      timeline: [],
+      last_updated: new Date().toISOString(),
     };
   }
 }

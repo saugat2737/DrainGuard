@@ -10,6 +10,11 @@ import {
   RefreshCw,
   AlertTriangle,
   Filter,
+  CheckCircle2,
+  Clock,
+  ShieldAlert,
+  ChevronRight,
+  Droplets,
 } from "lucide-react";
 import { RiskLevel } from "@/lib/types";
 
@@ -23,6 +28,20 @@ interface InspectionItem {
   top_reason: string;
 }
 
+interface ReportDetail {
+  id: string;
+  lat: number;
+  lng: number;
+  zone_id: string | null;
+  photo_url: string | null;
+  blockage_type: string;
+  severity: number;
+  summary: string;
+  status: "open" | "assigned" | "cleared";
+  source: string;
+  created_at: string;
+}
+
 function MunicipalDashboardContent() {
   const searchParams = useSearchParams();
   const initialRainParam = searchParams.get("rain_mm");
@@ -32,18 +51,35 @@ function MunicipalDashboardContent() {
     !isNaN(parsedInitialRain) ? parsedInitialRain : 0
   );
   const [inspections, setInspections] = useState<InspectionItem[]>([]);
+  const [reports, setReports] = useState<ReportDetail[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fetchInspections = useCallback(async (rainVal: number) => {
+  const fetchInspectionsAndReports = useCallback(async (rainVal: number) => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(`/api/inspections?rain_mm=${rainVal}`);
-      if (!res.ok) throw new Error("Failed to load municipal inspection backlog.");
-      const json = await res.json();
-      if (json.data) {
-        setInspections(json.data);
+      const [inspRes, repRes] = await Promise.all([
+        fetch(`/api/inspections?rain_mm=${rainVal}`),
+        fetch("/api/reports"),
+      ]);
+
+      if (!inspRes.ok) throw new Error("Failed to load municipal inspection backlog.");
+      const inspJson = await inspRes.json();
+      if (inspJson.data) {
+        setInspections(inspJson.data);
+        if (!selectedZoneId && inspJson.data.length > 0) {
+          setSelectedZoneId(inspJson.data[0].zone_id);
+        }
+      }
+
+      if (repRes.ok) {
+        const repJson = await repRes.json();
+        if (repJson.data) {
+          setReports(repJson.data);
+        }
       }
     } catch (err: unknown) {
       setErrorMessage(
@@ -52,262 +88,277 @@ function MunicipalDashboardContent() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedZoneId]);
 
   useEffect(() => {
-    fetchInspections(rainMm);
-  }, [fetchInspections, rainMm]);
+    fetchInspectionsAndReports(rainMm);
+  }, [fetchInspectionsAndReports, rainMm]);
 
-  // Derived Summary Metrics
-  const totalMonitoredZones = inspections.length;
-  const highOrSevereCount = inspections.filter(
-    (i) => i.level === "high" || i.level === "severe"
-  ).length;
-  const totalOpenReports = inspections.reduce(
-    (sum, i) => sum + i.open_reports,
-    0
-  );
-  const topPriorityZone = inspections[0] || null;
+  // Handle report lifecycle mutation (open -> assigned -> cleared)
+  const handleUpdateReportStatus = async (
+    reportId: string,
+    newStatus: "open" | "assigned" | "cleared"
+  ) => {
+    setIsUpdatingStatus(reportId);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: reportId, status: newStatus }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update report status");
+
+      // Refetch state
+      await fetchInspectionsAndReports(rainMm);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to mutate status");
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
 
   const getLevelBadge = (level: RiskLevel) => {
     switch (level) {
       case "low":
-        return "bg-[#34D399]/15 text-[#34D399] border-[#34D399]/30";
+        return "bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30";
       case "medium":
         return "bg-[#F5B942]/15 text-[#F5B942] border-[#F5B942]/30";
       case "high":
-        return "bg-[#FB7185]/15 text-[#FB7185] border-[#FB7185]/30";
+        return "bg-[#F97316]/15 text-[#F97316] border-[#F97316]/30";
       case "severe":
         return "bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444]/40";
     }
   };
 
+  const selectedZoneReports = reports.filter((r) => r.zone_id === selectedZoneId);
+  const selectedZoneItem = inspections.find((i) => i.zone_id === selectedZoneId);
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#0B1220] text-[#F8FAFC]">
-      {/* Municipal Top Command Header */}
-      <header className="h-16 border-b border-slate-800 bg-[#0B1220]/95 backdrop-blur px-4 md:px-6 flex items-center justify-between shrink-0">
+    <div className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100">
+      {/* Top Header */}
+      <header className="h-14 sm:h-16 border-b border-slate-800/80 bg-[#0B1220]/95 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-md">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-[#142235] border border-slate-700/80 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#142235] hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition touch-target"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Citizen Map</span>
+            <span>Commuter Map</span>
           </Link>
-          <div className="h-4 w-[1px] bg-slate-800" />
+          <div className="h-4 w-[1px] bg-slate-800 hidden sm:block" />
           <div className="flex items-center gap-2">
             <Image
               src="/assets/drainguard-logo-dark.svg"
               alt="DrainGuard"
               width={120}
               height={24}
-              className="h-6 w-auto object-contain"
+              className="h-6 w-auto object-contain hidden sm:block"
             />
-            <span className="font-semibold text-xs tracking-wider uppercase text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded bg-cyan-950/40">
-              Municipal Operations Console
+            <span className="font-bold text-[10px] tracking-wider uppercase text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-lg bg-cyan-950/40">
+              Municipal Console
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/25">
-            Simulated demo data
-          </span>
-          <span className="text-slate-400 hidden sm:inline">
-            Tumakuru Municipal Corporation
-          </span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 bg-[#142235] px-2.5 py-1.5 rounded-xl border border-slate-700/80 text-xs">
+            <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-slate-400 font-medium hidden xs:inline">Rain Context:</span>
+            <span className="font-bold text-white tabular-nums">{Math.round(rainMm)} mm</span>
+          </div>
+
+          <button
+            onClick={() => fetchInspectionsAndReports(rainMm)}
+            className="p-2 rounded-xl bg-[#142235] hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition touch-target"
+            title="Refresh Backlog"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
         </div>
       </header>
 
-      {/* Main Dashboard Container */}
-      <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto space-y-6">
-        {/* KPI Operational Metrics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <div className="bg-[#142235]/90 border border-slate-700/60 p-4 rounded-xl shadow-lg space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-              Monitored Zones
-            </span>
-            <span className="text-2xl font-black text-white tabular-nums">
-              {totalMonitoredZones}
-            </span>
-            <span className="text-[11px] text-slate-500 block">
-              Centroid: Tumakuru Urban
-            </span>
-          </div>
-
-          <div className="bg-[#142235]/90 border border-slate-700/60 p-4 rounded-xl shadow-lg space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-              Elevated / Severe
-            </span>
-            <span className="text-2xl font-black text-[#FB7185] tabular-nums">
-              {highOrSevereCount}
-            </span>
-            <span className="text-[11px] text-slate-500 block">
-              Score ≥ 60/100 threshold
-            </span>
-          </div>
-
-          <div className="bg-[#142235]/90 border border-slate-700/60 p-4 rounded-xl shadow-lg space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-              Open Blockage Reports
-            </span>
-            <span className="text-2xl font-black text-[#F5B942] tabular-nums">
-              {totalOpenReports}
-            </span>
-            <span className="text-[11px] text-slate-500 block">
-              Verified active field alerts
-            </span>
-          </div>
-
-          <div className="bg-[#142235]/90 border border-slate-700/60 p-4 rounded-xl shadow-lg space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-              Top Priority Zone
-            </span>
-            <span className="text-base font-bold text-[#38BDF8] truncate block">
-              {topPriorityZone ? topPriorityZone.name : "N/A"}
-            </span>
-            <span className="text-[11px] text-slate-400 block">
-              {topPriorityZone
-                ? `Score ${topPriorityZone.score} (${topPriorityZone.open_reports} open alerts)`
-                : ""}
-            </span>
-          </div>
-        </div>
-
-        {/* Action / Sync Banner */}
-        <div className="bg-[#142235]/80 border border-slate-700/60 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-[#38BDF8]">
-              <Filter className="w-4 h-4" />
-            </div>
+      {/* Main Workspace */}
+      <main className="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left Column: Priority Inspection Queue (7 cols) */}
+        <div className="lg:col-span-7 bg-[#142235]/95 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div>
-              <span className="font-bold text-sm text-white block">
-                Synchronized Simulation Rainfall: {Math.round(rainMm)} mm
-              </span>
-              <span className="text-xs text-slate-400">
-                Inspection backlog re-ranks live as rainfall increases.
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min="0"
-              max="120"
-              value={rainMm}
-              onChange={(e) => setRainMm(parseFloat(e.target.value))}
-              className="w-36 md:w-48 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#20D6C2]"
-            />
-            <button
-              onClick={() => fetchInspections(rainMm)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Ranked Queue Table */}
-        <div className="bg-[#142235]/95 border border-slate-700/60 rounded-xl overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#0B1220]/60">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-                Ranked Drain Clearance Queue
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-cyan-400" />
+                <span>Priority Clearance Backlog</span>
               </h2>
               <p className="text-xs text-slate-400">
-                Sorted by Current Risk Score (DESC) → Open Reports (DESC) → Zone ID
+                Sorted by deterministic risk: <code className="text-slate-300">score DESC → open_reports DESC</code>
               </p>
             </div>
-            <span className="text-xs font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
-              {inspections.length} Total Targets
+            <span className="text-xs text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-800/60 font-semibold tabular-nums">
+              {inspections.length} Zones
             </span>
           </div>
 
           {isLoading ? (
-            <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-[#38BDF8]" />
-              <span className="text-xs font-medium">Re-ranking municipal inspection backlog...</span>
+            <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+              <span className="text-xs font-medium">Calculating municipal priority backlog...</span>
             </div>
           ) : errorMessage ? (
-            <div className="p-8 text-center text-rose-400 text-xs flex flex-col items-center gap-2">
-              <AlertTriangle className="w-6 h-6 text-rose-500" />
+            <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/40">
-                    <th className="py-3 px-4">Rank</th>
-                    <th className="py-3 px-4">Zone Identifier</th>
-                    <th className="py-3 px-4">Current Score</th>
-                    <th className="py-3 px-4">Risk Level</th>
-                    <th className="py-3 px-4">Forecast Peak</th>
-                    <th className="py-3 px-4">Open Reports</th>
-                    <th className="py-3 px-4">Dominant Rationale</th>
-                    <th className="py-3 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/80">
-                  {inspections.map((item, idx) => {
-                    const rank = idx + 1;
-                    return (
-                      <tr
-                        key={item.zone_id}
-                        className="hover:bg-slate-800/40 transition group"
-                      >
-                        <td className="py-3 px-4 font-mono font-bold text-slate-400">
-                          #{rank}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="font-bold text-white block">
-                            {item.name}
-                          </span>
-                          <span className="font-mono text-[10px] text-cyan-400">
+            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-14rem)] pr-1">
+              {inspections.map((item, idx) => {
+                const isSelected = item.zone_id === selectedZoneId;
+                const badgeClass = getLevelBadge(item.level);
+
+                return (
+                  <div
+                    key={item.zone_id}
+                    onClick={() => setSelectedZoneId(item.zone_id)}
+                    className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? "bg-slate-900 border-cyan-500 ring-1 ring-cyan-500 shadow-md shadow-cyan-950/30"
+                        : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-400 tabular-nums shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm truncate">{item.name}</span>
+                          <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-1.5 py-0.2 rounded border border-cyan-800/40">
                             {item.zone_id}
                           </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm font-black text-white tabular-nums">
-                            {item.score}
-                          </span>
-                          <span className="text-[10px] text-slate-500">/100</span>
-                        </td>
-                        <td className="py-3 px-4">
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.top_reason}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <div className="text-base font-bold text-white tabular-nums">
+                          {item.score} <span className="text-[10px] font-normal text-slate-400">/ 100</span>
+                        </div>
+                        <span className={`inline-block px-2 py-0.2 rounded-full text-[10px] font-bold border ${badgeClass} uppercase`}>
+                          {item.level}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Zone Inspection & Live Report Lifecycle (5 cols) */}
+        <div className="lg:col-span-5 bg-[#142235]/95 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col space-y-4">
+          <div className="pb-3 border-b border-slate-800">
+            <h2 className="text-base font-bold text-white">Zone Dispatch & Report Lifecycle</h2>
+            <p className="text-xs text-slate-400">
+              {selectedZoneItem ? selectedZoneItem.name : "Select a catchment"}
+            </p>
+          </div>
+
+          {selectedZoneItem ? (
+            <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-14rem)] pr-1">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-[#0B1220] border border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Current Risk</span>
+                  <span className="text-lg font-bold text-white tabular-nums">{selectedZoneItem.score}/100</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#0B1220] border border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Open Blockage Reports</span>
+                  <span className="text-lg font-bold text-amber-400 tabular-nums">{selectedZoneItem.open_reports}</span>
+                </div>
+              </div>
+
+              {/* Citizen Reports List for this Zone */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                  Citizen Incident Reports ({selectedZoneReports.length})
+                </span>
+
+                {selectedZoneReports.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 text-center">
+                    No citizen reports logged in this catchment yet.
+                  </div>
+                ) : (
+                  selectedZoneReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-white capitalize flex items-center gap-1.5">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getLevelBadge(
-                              item.level
-                            )}`}
+                            className={`w-2 h-2 rounded-full ${
+                              report.status === "open"
+                                ? "bg-rose-500"
+                                : report.status === "assigned"
+                                ? "bg-amber-400"
+                                : "bg-emerald-400"
+                            }`}
+                          />
+                          {report.blockage_type} (Severity {report.severity})
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
+                            report.status === "open"
+                              ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                              : report.status === "assigned"
+                              ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                              : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                          }`}
+                        >
+                          {report.status}
+                        </span>
+                      </div>
+
+                      <p className="text-slate-300 text-[11px] leading-snug">{report.summary}</p>
+
+                      {/* State transition buttons */}
+                      <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                        {report.status === "open" && (
+                          <button
+                            onClick={() => handleUpdateReportStatus(report.id, "assigned")}
+                            disabled={isUpdatingStatus === report.id}
+                            className="flex-1 py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1"
                           >
-                            {item.level.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 tabular-nums text-slate-300">
-                          {item.score_at_forecast_peak}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="font-semibold text-white px-2 py-0.5 rounded bg-slate-800 border border-slate-700">
-                            {item.open_reports} active
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-300 max-w-xs truncate">
-                          {item.top_reason}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <Link
-                            href={`/?rain_mm=${Math.round(rainMm)}`}
-                            className="text-xs text-[#38BDF8] hover:underline font-medium"
+                            <Clock className="w-3 h-3" />
+                            <span>Assign Crew</span>
+                          </button>
+                        )}
+                        {report.status !== "cleared" && (
+                          <button
+                            onClick={() => handleUpdateReportStatus(report.id, "cleared")}
+                            disabled={isUpdatingStatus === report.id}
+                            className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1"
                           >
-                            Inspect Map →
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Mark Cleared</span>
+                          </button>
+                        )}
+                        {report.status === "cleared" && (
+                          <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Clearance verified (0 weight)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="py-20 text-center text-slate-400 text-xs">
+              Select a catchment from the backlog to inspect reports.
             </div>
           )}
         </div>
@@ -316,12 +367,12 @@ function MunicipalDashboardContent() {
   );
 }
 
-export default function MunicipalDashboardPage() {
+export default function MunicipalPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0B1220] flex items-center justify-center text-slate-400">
-          <Loader2 className="w-8 h-8 animate-spin text-[#38BDF8]" />
+        <div className="min-h-screen bg-[#0B1220] flex items-center justify-center text-slate-400 text-xs font-semibold">
+          Loading Municipal Operations...
         </div>
       }
     >

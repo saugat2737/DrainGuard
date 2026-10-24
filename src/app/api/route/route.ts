@@ -5,6 +5,7 @@ import { getAllReports } from "@/lib/reports-store";
 import { Zone } from "@/lib/types";
 import { calculateZoneRisk } from "@/lib/risk";
 import { getWeatherForecast } from "@/lib/weather";
+import { getTrafficProviderStatus } from "@/lib/traffic";
 import {
   fetchOSRMAlternatives,
   scoreRoute,
@@ -24,6 +25,7 @@ const routeQuerySchema = z.object({
     lng: z.number().min(-180).max(180),
   }),
   rain_mm: z.number().min(0).max(120).optional(),
+  is_simulated: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -43,12 +45,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { origin, destination, rain_mm } = parseResult.data;
+    const { origin, destination, rain_mm, is_simulated } = parseResult.data;
 
     let effectiveRain = rain_mm;
+    let computedSimulated = Boolean(is_simulated);
     if (effectiveRain === undefined) {
       const weather = await getWeatherForecast();
       effectiveRain = weather.rain_mm_next_3h;
+      computedSimulated = false;
     }
 
     // Prepare current zones with risk scores
@@ -89,20 +93,28 @@ export async function POST(request: NextRequest) {
 
     // Score each returned candidate route
     const scoredCandidates: ScoredRoute[] = osrmRoutes.map((r) =>
-      scoreRoute(r.coordinates, r.duration, r.distance, zonesWithRisk)
+      scoreRoute(r.coordinates, r.duration, r.distance, zonesWithRisk, effectiveRain)
     );
 
-    const comparison = compareRoutes(scoredCandidates);
+    const comparison = compareRoutes(scoredCandidates, effectiveRain, computedSimulated);
+
+    // Attach honest traffic status
+    const trafficStatus = getTrafficProviderStatus();
+    comparison.traffic_status = {
+      is_live: trafficStatus.isLiveTrafficAvailable,
+      note: trafficStatus.message,
+    };
 
     return NextResponse.json({
       data: comparison,
     });
-  } catch {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal routing error";
     return NextResponse.json(
       {
         error: {
           code: "INTERNAL_ERROR",
-          message: "An unexpected error occurred during route computation.",
+          message,
         },
       },
       { status: 500 }

@@ -6,10 +6,12 @@ import {
   TileLayer,
   Polygon,
   Polyline,
+  CircleMarker,
   Tooltip,
   useMap,
 } from "react-leaflet";
 import { Zone, ZoneRisk, RiskLevel } from "@/lib/types";
+import { HazardHotspot } from "@/lib/routing";
 
 interface MapViewProps {
   zones: (Zone & { risk: ZoneRisk })[];
@@ -18,15 +20,18 @@ interface MapViewProps {
   center?: [number, number];
   zoom?: number;
   routeGeometry?: [number, number][] | null;
-  routeType?: "fastest" | "safest";
+  routeType?: "fastest" | "safest" | "balanced";
+  showRiskZones?: boolean;
+  showReportsLayer?: boolean;
+  hazardHotspots?: HazardHotspot[];
+  onSelectHotspot?: (zoneId: string) => void;
 }
 
-// Operational risk colors from official Brand Kit & docs/07_UI_UX_SPEC.md
-const RISK_COLORS: Record<RiskLevel, { stroke: string; fill: string }> = {
-  low: { stroke: "#34D399", fill: "#34D399" },
-  medium: { stroke: "#F5B942", fill: "#F5B942" },
-  high: { stroke: "#FB7185", fill: "#FB7185" },
-  severe: { stroke: "#EF4444", fill: "#EF4444" },
+const RISK_COLORS: Record<RiskLevel, { stroke: string; fill: string; label: string }> = {
+  low: { stroke: "#22C55E", fill: "#22C55E", label: "Low" },
+  medium: { stroke: "#F59E0B", fill: "#F59E0B", label: "Medium" },
+  high: { stroke: "#F97316", fill: "#F97316", label: "High" },
+  severe: { stroke: "#EF4444", fill: "#EF4444", label: "Severe" },
 };
 
 function MapRecenter({ center }: { center: [number, number] }) {
@@ -45,124 +50,220 @@ export default function MapView({
   zoom = 14,
   routeGeometry = null,
   routeType = "safest",
+  showRiskZones = true,
+  showReportsLayer = true,
+  hazardHotspots = [],
+  onSelectHotspot,
 }: MapViewProps) {
+  const getRouteColor = () => {
+    switch (routeType) {
+      case "safest":
+        return "#20D6C2"; // Aqua / safe
+      case "balanced":
+        return "#38BDF8"; // Cyan
+      case "fastest":
+      default:
+        return "#F59E0B"; // Amber / direct
+    }
+  };
+
   return (
-    <div className="relative w-full h-full min-h-[440px] rounded-xl overflow-hidden border border-slate-700/60 shadow-xl shadow-black/30">
+    <div className="relative w-full h-full min-h-[100%] overflow-hidden bg-[#0B1220]">
       <MapContainer
         center={center}
         zoom={zoom}
         scrollWheelZoom={true}
         className="w-full h-full z-0"
+        zoomControl={false}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OSM</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         <MapRecenter center={center} />
 
-        {/* Display computed active driving route line if present */}
+        {/* Driving Route Polyline */}
         {routeGeometry && routeGeometry.length > 1 && (
-          <Polyline
-            positions={routeGeometry.map(([lng, lat]) => [lat, lng])}
-            pathOptions={{
-              color: routeType === "safest" ? "#20D6C2" : "#38BDF8",
-              weight: 6,
-              opacity: 0.95,
-              dashArray: routeType === "safest" ? undefined : "6 6",
-            }}
-          />
+          <>
+            {/* Outer shadow/casing */}
+            <Polyline
+              positions={routeGeometry.map(([lng, lat]) => [lat, lng])}
+              pathOptions={{
+                color: "#0B1220",
+                weight: 9,
+                opacity: 0.8,
+              }}
+            />
+            {/* Active route stroke */}
+            <Polyline
+              positions={routeGeometry.map(([lng, lat]) => [lat, lng])}
+              pathOptions={{
+                color: getRouteColor(),
+                weight: 6,
+                opacity: 0.95,
+                dashArray: routeType === "fastest" ? "8 6" : undefined,
+              }}
+            />
+            {/* Start & End Point Markers */}
+            <CircleMarker
+              center={[routeGeometry[0][1], routeGeometry[0][0]]}
+              radius={7}
+              pathOptions={{
+                color: "#FFFFFF",
+                fillColor: "#22C55E",
+                fillOpacity: 1,
+                weight: 2.5,
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -5]}>
+                <span className="font-semibold text-xs text-slate-900">Trip Origin</span>
+              </Tooltip>
+            </CircleMarker>
+            <CircleMarker
+              center={[
+                routeGeometry[routeGeometry.length - 1][1],
+                routeGeometry[routeGeometry.length - 1][0],
+              ]}
+              radius={7}
+              pathOptions={{
+                color: "#FFFFFF",
+                fillColor: "#EF4444",
+                fillOpacity: 1,
+                weight: 2.5,
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -5]}>
+                <span className="font-semibold text-xs text-slate-900">Destination</span>
+              </Tooltip>
+            </CircleMarker>
+          </>
         )}
 
-        {zones.map((zone) => {
-          const isSelected = zone.id === selectedZoneId;
-          const colors = RISK_COLORS[zone.risk.level] || RISK_COLORS.low;
-          const geometry = zone.geometry;
+        {/* Risk Zones Polygons / Polylines */}
+        {showRiskZones &&
+          zones.map((zone) => {
+            const isSelected = zone.id === selectedZoneId;
+            const colors = RISK_COLORS[zone.risk.level] || RISK_COLORS.low;
+            const geometry = zone.geometry;
 
-          if (geometry.type === "Polygon") {
-            const positions: [number, number][] = geometry.coordinates[0].map(
-              ([lng, lat]) => [lat, lng]
-            );
+            if (geometry.type === "Polygon") {
+              const positions: [number, number][] = geometry.coordinates[0].map(
+                ([lng, lat]) => [lat, lng]
+              );
+
+              return (
+                <Polygon
+                  key={zone.id}
+                  positions={positions}
+                  pathOptions={{
+                    color: isSelected ? "#38BDF8" : colors.stroke,
+                    fillColor: colors.fill,
+                    fillOpacity: isSelected ? 0.6 : 0.35,
+                    weight: isSelected ? 3 : 1.8,
+                    dashArray: isSelected ? "4 4" : undefined,
+                  }}
+                  eventHandlers={{
+                    click: () => onSelectZone(zone),
+                  }}
+                >
+                  <Tooltip sticky direction="top" opacity={0.96}>
+                    <div className="text-xs p-1 font-sans">
+                      <div className="font-bold text-slate-900">{zone.name}</div>
+                      <div className="text-slate-700">
+                        Risk: <strong style={{ color: colors.stroke }}>{zone.risk.score}/100</strong> ({colors.label})
+                      </div>
+                    </div>
+                  </Tooltip>
+                </Polygon>
+              );
+            }
+
+            if (geometry.type === "LineString") {
+              const positions: [number, number][] = geometry.coordinates.map(
+                ([lng, lat]) => [lat, lng]
+              );
+
+              return (
+                <Polyline
+                  key={zone.id}
+                  positions={positions}
+                  pathOptions={{
+                    color: isSelected ? "#38BDF8" : colors.stroke,
+                    weight: isSelected ? 7 : 4.5,
+                    opacity: isSelected ? 0.95 : 0.8,
+                  }}
+                  eventHandlers={{
+                    click: () => onSelectZone(zone),
+                  }}
+                >
+                  <Tooltip sticky direction="top" opacity={0.96}>
+                    <div className="text-xs p-1 font-sans">
+                      <div className="font-bold text-slate-900">{zone.name}</div>
+                      <div className="text-slate-700">
+                        Risk: <strong style={{ color: colors.stroke }}>{zone.risk.score}/100</strong> ({colors.label})
+                      </div>
+                    </div>
+                  </Tooltip>
+                </Polyline>
+              );
+            }
+
+            return null;
+          })}
+
+        {/* Hazard Hotspot Markers along active route */}
+        {showReportsLayer &&
+          hazardHotspots.map((spot) => {
+            const matchedZone = zones.find((z) => z.id === spot.zone_id);
+            if (!matchedZone) return null;
+
+            let spotCenter: [number, number] | null = null;
+            if (matchedZone.geometry.type === "Polygon") {
+              spotCenter = [
+                matchedZone.geometry.coordinates[0][0][1],
+                matchedZone.geometry.coordinates[0][0][0],
+              ];
+            } else if (matchedZone.geometry.type === "LineString") {
+              spotCenter = [
+                matchedZone.geometry.coordinates[0][1],
+                matchedZone.geometry.coordinates[0][0],
+              ];
+            }
+
+            if (!spotCenter) return null;
 
             return (
-              <Polygon
-                key={zone.id}
-                positions={positions}
+              <CircleMarker
+                key={`hotspot-${spot.zone_id}`}
+                center={spotCenter}
+                radius={9}
                 pathOptions={{
-                  color: isSelected ? "#38BDF8" : colors.stroke,
-                  fillColor: colors.fill,
-                  fillOpacity: isSelected ? 0.65 : 0.42,
-                  weight: isSelected ? 3.5 : 2,
-                  dashArray: isSelected ? "4 4" : undefined,
+                  color: "#FFFFFF",
+                  fillColor: spot.risk_score >= 80 ? "#EF4444" : "#F97316",
+                  fillOpacity: 0.95,
+                  weight: 2,
                 }}
                 eventHandlers={{
-                  click: () => onSelectZone(zone),
+                  click: () => {
+                    onSelectZone(matchedZone);
+                    if (onSelectHotspot) onSelectHotspot(spot.zone_id);
+                  },
                 }}
               >
-                <Tooltip sticky direction="top" opacity={0.96}>
-                  <div className="text-xs font-sans p-1">
-                    <span className="font-bold block text-slate-900">{zone.name}</span>
-                    <span className="text-slate-700">
-                      Score: <strong style={{ color: colors.stroke }}>{zone.risk.score}</strong> ({zone.risk.level.toUpperCase()})
+                <Tooltip direction="top" offset={[0, -5]}>
+                  <div className="text-xs p-1 font-sans">
+                    <span className="font-bold block text-rose-600">⚠ Waterlogging Hazard</span>
+                    <span className="font-medium text-slate-800">{spot.zone_name}</span>
+                    <span className="block text-slate-600 mt-0.5">
+                      Score: {spot.risk_score}/100 · {spot.open_reports_count} open reports
                     </span>
                   </div>
                 </Tooltip>
-              </Polygon>
+              </CircleMarker>
             );
-          }
-
-          if (geometry.type === "LineString") {
-            const positions: [number, number][] = geometry.coordinates.map(
-              ([lng, lat]) => [lat, lng]
-            );
-
-            return (
-              <Polyline
-                key={zone.id}
-                positions={positions}
-                pathOptions={{
-                  color: isSelected ? "#38BDF8" : colors.stroke,
-                  weight: isSelected ? 7 : 5,
-                  opacity: isSelected ? 0.95 : 0.82,
-                }}
-                eventHandlers={{
-                  click: () => onSelectZone(zone),
-                }}
-              >
-                <Tooltip sticky direction="top" opacity={0.96}>
-                  <div className="text-xs font-sans p-1">
-                    <span className="font-bold block text-slate-900">{zone.name}</span>
-                    <span className="text-slate-700">
-                      Score: <strong style={{ color: colors.stroke }}>{zone.risk.score}</strong> ({zone.risk.level.toUpperCase()})
-                    </span>
-                  </div>
-                </Tooltip>
-              </Polyline>
-            );
-          }
-
-          return null;
-        })}
+          })}
       </MapContainer>
-
-      {/* Floating Map Legend (Bottom-Left) */}
-      <div className="absolute bottom-4 left-4 z-[400] bg-[#0B1220]/92 backdrop-blur-md border border-slate-700/80 px-3.5 py-2.5 rounded-lg shadow-xl text-slate-200 text-xs flex items-center gap-3.5">
-        <span className="font-semibold text-[11px] uppercase tracking-wider text-slate-400">
-          Risk:
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#34D399]" /> Low (0-29)
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#F5B942]" /> Medium (30-59)
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#FB7185]" /> High (60-79)
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" /> Severe (80-100)
-        </span>
-      </div>
     </div>
   );
 }

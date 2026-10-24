@@ -1,9 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import React from "react";
-import { Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Zone, ZoneRisk } from "@/lib/types";
+import { HazardHotspot } from "@/lib/routing";
+
+const MapView = dynamic(() => import("./MapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full min-h-[440px] bg-[#0B1220] flex flex-col items-center justify-center text-slate-400 gap-3 border border-slate-800">
+      <div className="w-9 h-9 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
+      <span className="text-xs font-medium tracking-wide text-slate-300">
+        Loading Hydro Cartography...
+      </span>
+    </div>
+  ),
+});
 
 interface MapWrapperProps {
   zones: (Zone & { risk: ZoneRisk })[];
@@ -12,20 +24,13 @@ interface MapWrapperProps {
   center?: [number, number];
   zoom?: number;
   routeGeometry?: [number, number][] | null;
-  routeType?: "fastest" | "safest";
+  routeType?: "fastest" | "safest" | "balanced";
+  showRiskZones?: boolean;
+  showReportsLayer?: boolean;
+  hazardHotspots?: HazardHotspot[];
+  onSelectHotspot?: (zoneId: string) => void;
 }
 
-// Client-only dynamic import with SSR disabled to prevent Leaflet window errors
-const DynamicMapView = dynamic(() => import("./MapView"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full min-h-[420px] rounded-xl border border-slate-700/60 bg-[#0B1220] flex flex-col items-center justify-center text-slate-400 gap-3">
-      <Loader2 className="w-8 h-8 animate-spin text-[#38BDF8]" />
-      <span className="text-xs font-medium">Initializing Tumakuru Spatial Cartography...</span>
-    </div>
-  ),
-});
-
 export function MapWrapper(props: MapWrapperProps) {
-  return <DynamicMapView {...props} />;
+  return <MapView {...props} />;
 }

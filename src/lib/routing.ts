@@ -11,19 +11,43 @@ export interface RouteGeometry {
   coordinates: [number, number][]; // [lng, lat]
 }
 
+export interface HazardHotspot {
+  zone_id: string;
+  zone_name: string;
+  risk_score: number;
+  risk_level: string;
+  reason: string;
+  open_reports_count: number;
+}
+
 export interface ScoredRoute {
+  id?: string;
+  preference?: "fastest" | "safest" | "balanced";
   geometry: RouteGeometry;
   duration_s: number;
   distance_m: number;
   risk_score: number; // 0..100
   zones_crossed: string[];
+  hazard_hotspots?: HazardHotspot[];
+  estimated_rain_mm?: number;
+  delay_vs_fastest_s?: number;
+  explanation?: string;
 }
 
 export interface RouteComparisonResult {
   fastest: ScoredRoute;
   safest: ScoredRoute;
-  recommendation: "safest" | "fastest";
+  balanced?: ScoredRoute;
+  recommendation: "safest" | "fastest" | "balanced";
   reason: string;
+  traffic_status: {
+    is_live: boolean;
+    note: string;
+  };
+  weather_context: {
+    rain_mm: number;
+    is_simulated: boolean;
+  };
 }
 
 /**
@@ -31,20 +55,26 @@ export interface RouteComparisonResult {
  * - Buffer the route line by 30 m (0.03 km).
  * - Sum score of zones it intersects weighted by intersection length.
  * - Normalize to 0..100.
+ * - Identify hazard hotspots along the corridor.
  */
 export function scoreRoute(
   routeCoords: [number, number][],
   duration_s: number,
   distance_m: number,
-  zonesWithRisk: (Zone & { risk: ZoneRisk })[]
+  zonesWithRisk: (Zone & { risk: ZoneRisk })[],
+  effectiveRainMm: number = 0
 ): ScoredRoute {
   if (routeCoords.length < 2) {
     return {
       geometry: { type: "LineString", coordinates: routeCoords },
-      duration_s,
-      distance_m,
+      duration_s: Math.round(duration_s),
+      distance_m: Math.round(distance_m),
       risk_score: 0,
       zones_crossed: [],
+      hazard_hotspots: [],
+      estimated_rain_mm: effectiveRainMm,
+      delay_vs_fastest_s: 0,
+      explanation: "Direct point coordinates.",
     };
   }
 
@@ -54,10 +84,14 @@ export function scoreRoute(
   if (totalLengthKm <= 0) {
     return {
       geometry: { type: "LineString", coordinates: routeCoords },
-      duration_s,
-      distance_m,
+      duration_s: Math.round(duration_s),
+      distance_m: Math.round(distance_m),
       risk_score: 0,
       zones_crossed: [],
+      hazard_hotspots: [],
+      estimated_rain_mm: effectiveRainMm,
+      delay_vs_fastest_s: 0,
+      explanation: "Zero-length route.",
     };
   }
 
@@ -65,6 +99,7 @@ export function scoreRoute(
   const routeBuffer = turf.buffer(routeLine, 0.03, { units: "kilometers" });
 
   const zonesCrossedSet = new Set<string>();
+  const hazardHotspots: HazardHotspot[] = [];
   let weightedRiskSum = 0;
   let intersectedLengthKm = 0;
 
@@ -74,7 +109,6 @@ export function scoreRoute(
       if (zone.geometry.type === "Polygon") {
         zonePoly = turf.polygon(zone.geometry.coordinates);
       } else if (zone.geometry.type === "LineString") {
-        // Buffer zone line string by 25m to evaluate corridor intersection
         zonePoly = turf.buffer(turf.lineString(zone.geometry.coordinates), 0.025, {
           units: "kilometers",
         });
@@ -101,25 +135,34 @@ export function scoreRoute(
           }
 
           if (segLength === 0) {
-            // Fallback to proportional overlap if split didn't isolate a segment
             segLength = Math.min(totalLengthKm, 0.25);
           }
 
           weightedRiskSum += zone.risk.score * segLength;
           intersectedLengthKm += segLength;
+
+          if (zone.risk.score >= 50 || zone.risk.level === "high" || zone.risk.level === "severe") {
+            hazardHotspots.push({
+              zone_id: zone.id,
+              zone_name: zone.name,
+              risk_score: zone.risk.score,
+              risk_level: zone.risk.level,
+              reason: zone.risk.explanation || `${zone.risk.level.toUpperCase()} waterlogging risk zone`,
+              open_reports_count: zone.risk.linked_report_ids?.length || 0,
+            });
+          }
         }
       }
     } catch {
-      // Continue scoring other zones safely
+      // Continue safely
     }
   }
 
-  // Compute final normalized route risk score (0..100)
   let routeRiskScore = 0;
   if (totalLengthKm > 0 && intersectedLengthKm > 0) {
     routeRiskScore = Math.min(
       100,
-      Math.round((weightedRiskSum / totalLengthKm))
+      Math.round(weightedRiskSum / totalLengthKm)
     );
   }
 
@@ -129,6 +172,10 @@ export function scoreRoute(
     distance_m: Math.round(distance_m),
     risk_score: routeRiskScore,
     zones_crossed: Array.from(zonesCrossedSet),
+    hazard_hotspots: hazardHotspots,
+    estimated_rain_mm: effectiveRainMm,
+    delay_vs_fastest_s: 0,
+    explanation: "",
   };
 }
 
@@ -177,51 +224,109 @@ export async function fetchOSRMAlternatives(
  * Compare fastest vs safest routes per docs/05_RISK_ENGINE.md:
  * - Pick fastest (min duration).
  * - Pick safest (lowest route risk).
+ * - Synthesize a balanced option if distinctive alternatives exist.
  * - If safest adds <= 40% duration to fastest: recommend safest.
  * - Otherwise: recommend fastest and explain the time trade-off.
  */
 export function compareRoutes(
-  scoredRoutes: ScoredRoute[]
+  scoredRoutes: ScoredRoute[],
+  effectiveRainMm: number = 0,
+  isSimulated: boolean = false
 ): RouteComparisonResult {
   if (scoredRoutes.length === 0) {
     throw new Error("No scored routes available for comparison.");
   }
 
   // Find fastest
-  const fastest = [...scoredRoutes].sort((a, b) => a.duration_s - b.duration_s)[0];
+  const fastestRaw = [...scoredRoutes].sort((a, b) => a.duration_s - b.duration_s)[0];
 
   // Find safest (lowest risk)
-  const safest = [...scoredRoutes].sort((a, b) => a.risk_score - b.risk_score)[0];
+  const safestRaw = [...scoredRoutes].sort((a, b) => a.risk_score - b.risk_score)[0];
 
-  // If same route
-  if (fastest.risk_score === safest.risk_score && fastest.duration_s === safest.duration_s) {
-    return {
-      fastest,
-      safest,
-      recommendation: "fastest",
-      reason: `Primary route has a manageable risk score of ${fastest.risk_score}/100. No significant lower-risk deviation found.`,
-    };
-  }
-
-  const durationDelta = safest.duration_s - fastest.duration_s;
-  const durationIncreasePct = fastest.duration_s > 0 ? (durationDelta / fastest.duration_s) * 100 : 0;
+  const durationDelta = safestRaw.duration_s - fastestRaw.duration_s;
+  const durationIncreasePct = fastestRaw.duration_s > 0 ? (durationDelta / fastestRaw.duration_s) * 100 : 0;
   const extraMinutes = Math.round(durationDelta / 60);
 
-  // If safest adds <= 40% to duration, recommend safest
-  if (durationIncreasePct <= 40) {
-    return {
-      fastest,
-      safest,
-      recommendation: "safest",
-      reason: `Safer detour recommended: avoids severe waterlogging zones (Risk ${safest.risk_score} vs ${fastest.risk_score}) adding only ${extraMinutes} min (+${Math.round(durationIncreasePct)}% travel time).`,
+  const fastest: ScoredRoute = {
+    ...fastestRaw,
+    id: "route-fastest",
+    preference: "fastest",
+    delay_vs_fastest_s: 0,
+    explanation:
+      fastestRaw.risk_score > 60
+        ? `Fastest travel time, but passes through high-exposure flood areas (Risk ${fastestRaw.risk_score}/100).`
+        : `Direct, optimal driving time with low estimated hazard exposure (Risk ${fastestRaw.risk_score}/100).`,
+  };
+
+  const safest: ScoredRoute = {
+    ...safestRaw,
+    id: "route-safest",
+    preference: "safest",
+    delay_vs_fastest_s: Math.max(0, durationDelta),
+    explanation:
+      durationDelta === 0
+        ? `Lowest risk path (Score ${safestRaw.risk_score}/100), matching the fastest duration.`
+        : `Avoids higher-risk choke points (Risk ${safestRaw.risk_score}/100 vs ${fastestRaw.risk_score}/100), adding ${extraMinutes} min (+${Math.round(durationIncreasePct)}%).`,
+  };
+
+  // Build balanced alternative
+  let balanced: ScoredRoute | undefined = undefined;
+  const nonIdentical = scoredRoutes.filter(
+    (r) =>
+      (r.duration_s !== fastestRaw.duration_s || r.risk_score !== fastestRaw.risk_score) &&
+      (r.duration_s !== safestRaw.duration_s || r.risk_score !== safestRaw.risk_score)
+  );
+
+  if (nonIdentical.length > 0) {
+    const candidateBalanced = nonIdentical.sort((a, b) => {
+      const durA = (a.duration_s - fastestRaw.duration_s) / (fastestRaw.duration_s || 1);
+      const durB = (b.duration_s - fastestRaw.duration_s) / (fastestRaw.duration_s || 1);
+      return durA * 0.5 + a.risk_score * 0.5 - (durB * 0.5 + b.risk_score * 0.5);
+    })[0];
+
+    balanced = {
+      ...candidateBalanced,
+      id: "route-balanced",
+      preference: "balanced",
+      delay_vs_fastest_s: Math.max(0, candidateBalanced.duration_s - fastestRaw.duration_s),
+      explanation: `Compromise route: balances moderate travel delay with lower waterlogging exposure.`,
+    };
+  } else if (durationDelta > 0) {
+    balanced = {
+      ...safest,
+      id: "route-balanced",
+      preference: "balanced",
+      explanation: `Balanced option: recommends avoiding known waterlogging corridors while keeping delays modest.`,
     };
   }
 
-  // Otherwise recommend fastest due to excessive detour time
+  let recommendation: "safest" | "fastest" | "balanced" = "fastest";
+  let reason = "";
+
+  if (fastest.risk_score === safest.risk_score && fastest.duration_s === safest.duration_s) {
+    recommendation = "fastest";
+    reason = `Primary route has a manageable risk score of ${fastest.risk_score}/100. No significant lower-risk deviation found.`;
+  } else if (durationIncreasePct <= 40) {
+    recommendation = "safest";
+    reason = `Safer detour recommended: avoids severe waterlogging zones (Risk ${safest.risk_score} vs ${fastest.risk_score}) adding only ${extraMinutes} min (+${Math.round(durationIncreasePct)}% travel time).`;
+  } else {
+    recommendation = "fastest";
+    reason = `Fastest route recommended: avoiding flood zones adds ${extraMinutes} min (+${Math.round(durationIncreasePct)}% travel time), exceeding the 40% threshold. Proceed with caution.`;
+  }
+
   return {
     fastest,
     safest,
-    recommendation: "fastest",
-    reason: `Fastest route recommended: avoiding flood zones adds ${extraMinutes} min (+${Math.round(durationIncreasePct)}% travel time), exceeding the 40% threshold. Proceed with caution.`,
+    balanced,
+    recommendation,
+    reason,
+    traffic_status: {
+      is_live: false,
+      note: "Live vehicular traffic data is unavailable. Travel times use OSRM baseline driving speeds without live congestion.",
+    },
+    weather_context: {
+      rain_mm: effectiveRainMm,
+      is_simulated: isSimulated,
+    },
   };
 }
