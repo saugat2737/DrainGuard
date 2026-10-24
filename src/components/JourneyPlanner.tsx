@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Navigation,
   ShieldCheck,
@@ -20,8 +20,12 @@ import {
   CloudRain,
   History,
   CheckCircle2,
+  ArrowUpDown,
+  Compass,
 } from "lucide-react";
 import { ScoredRoute, RouteComparisonResult, HazardHotspot, RouteEvidenceCheck } from "@/lib/routing";
+import { GeocodePlace, TUMAKURU_FALLBACK_PRESETS } from "@/lib/geocoding";
+import { PlaceAutocompleteInput } from "./PlaceAutocompleteInput";
 
 interface JourneyPlannerProps {
   currentRain: number;
@@ -31,14 +35,14 @@ interface JourneyPlannerProps {
   activeDisplayRoute: "fastest" | "safest" | "balanced";
   onSelectHotspot?: (zoneId: string) => void;
   onOpenStatusDrawer?: () => void;
+  // Map picking props
+  onStartPickOnMap?: (target: "origin" | "destination") => void;
+  activePickingTarget?: "origin" | "destination" | null;
+  originPlace: GeocodePlace | null;
+  destinationPlace: GeocodePlace | null;
+  onChangeOrigin: (place: GeocodePlace | null) => void;
+  onChangeDestination: (place: GeocodePlace | null) => void;
 }
-
-export const PRESET_LOCATIONS = [
-  { name: "Tumakuru Railway Station", lat: 13.3465, lng: 77.1215, desc: "North-East Transit Hub" },
-  { name: "Siddaganga Extension", lat: 13.3290, lng: 77.1080, desc: "South-West Residential Catchment" },
-  { name: "Amanikere North Entrance", lat: 13.3440, lng: 77.1140, desc: "Lake Shore Basin Corridor" },
-  { name: "Gubbi Gate Market", lat: 13.3370, lng: 77.1020, desc: "Commercial Low-Lying Underpass" },
-];
 
 export function JourneyPlanner({
   currentRain,
@@ -48,28 +52,51 @@ export function JourneyPlanner({
   activeDisplayRoute,
   onSelectHotspot,
   onOpenStatusDrawer,
+  onStartPickOnMap,
+  activePickingTarget = null,
+  originPlace,
+  destinationPlace,
+  onChangeOrigin,
+  onChangeDestination,
 }: JourneyPlannerProps) {
-  const [originIndex, setOriginIndex] = useState(0);
-  const [destIndex, setDestIndex] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [routeResult, setRouteResult] = useState<RouteComparisonResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
+  const [isLocating, setIsLocating] = useState(false);
+
+  // Clear routes if either point changes to null
+  useEffect(() => {
+    if (!originPlace || !destinationPlace) {
+      setRouteResult(null);
+      onRoutesCalculated(null);
+    }
+  }, [originPlace, destinationPlace, onRoutesCalculated]);
 
   const handleComputeRoute = async () => {
+    if (!originPlace || !destinationPlace) {
+      setErrorMessage("Please select both starting point and destination.");
+      return;
+    }
+
+    if (
+      Math.abs(originPlace.lat - destinationPlace.lat) < 0.0001 &&
+      Math.abs(originPlace.lng - destinationPlace.lng) < 0.0001
+    ) {
+      setErrorMessage("Starting point and destination cannot be identical.");
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
-
-    const origin = PRESET_LOCATIONS[originIndex];
-    const destination = PRESET_LOCATIONS[destIndex];
 
     try {
       const res = await fetch("/api/route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { lat: origin.lat, lng: origin.lng },
-          destination: { lat: destination.lat, lng: destination.lng },
+          origin: { lat: originPlace.lat, lng: originPlace.lng },
+          destination: { lat: destinationPlace.lat, lng: destinationPlace.lng },
           rain_mm: currentRain,
           is_simulated: isSimulated,
         }),
@@ -94,10 +121,71 @@ export function JourneyPlanner({
     }
   };
 
+  const handleSwap = () => {
+    const temp = originPlace;
+    onChangeOrigin(destinationPlace);
+    onChangeDestination(temp);
+    setRouteResult(null);
+    onRoutesCalculated(null);
+  };
+
   const handleClear = () => {
+    onChangeOrigin(null);
+    onChangeDestination(null);
     setRouteResult(null);
     setErrorMessage(null);
     onRoutesCalculated(null);
+  };
+
+  // Browser Geolocation for Origin
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setErrorMessage("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsLocating(true);
+    setErrorMessage(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        try {
+          const res = await fetch(`/api/geocode?mode=reverse&lat=${lat}&lng=${lng}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.data) {
+              onChangeOrigin(json.data);
+              setIsLocating(false);
+              return;
+            }
+          }
+        } catch {
+          // Fall through
+        }
+
+        onChangeOrigin({
+          id: `curr-${lat.toFixed(4)}-${lng.toFixed(4)}`,
+          name: "My Current Location",
+          displayName: `GPS Location (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)`,
+          lat,
+          lng,
+        });
+        setIsLocating(false);
+      },
+      (err) => {
+        setIsLocating(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setErrorMessage("Location access was denied. Please select a starting point manually.");
+        } else if (err.code === err.TIMEOUT) {
+          setErrorMessage("Location request timed out. Please try searching or picking on the map.");
+        } else {
+          setErrorMessage("Unable to determine current position. Please select manually.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
   };
 
   const formatDuration = (seconds: number) => {
@@ -121,7 +209,7 @@ export function JourneyPlanner({
 
   return (
     <div className="flex flex-col space-y-3">
-      {/* Origin & Destination Bar */}
+      {/* Origin & Destination Search Bar */}
       <div className="bg-[#142235]/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 sm:p-4 shadow-xl space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
@@ -133,11 +221,11 @@ export function JourneyPlanner({
                 Plan a Rain-Safe Trip
               </h2>
               <p className="text-[10px] text-slate-400">
-                Ground-truthed basins, open culverts & live rain
+                Search landmarks or pick points directly on map
               </p>
             </div>
           </div>
-          {routeResult && (
+          {(originPlace || destinationPlace || routeResult) && (
             <button
               onClick={handleClear}
               className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition"
@@ -147,203 +235,204 @@ export function JourneyPlanner({
           )}
         </div>
 
-        {/* Inputs */}
+        {/* Search Inputs with Autocomplete & Pick-on-Map */}
         <div className="space-y-2 relative">
-          {/* Origin */}
-          <div className="flex items-center gap-2.5 bg-[#0B1220] border border-slate-800 focus-within:border-cyan-500/60 p-2.5 rounded-xl transition">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-            <div className="flex-1 min-w-0">
-              <label htmlFor="origin-select" className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Starting Point
-              </label>
-              <select
-                id="origin-select"
-                value={originIndex}
-                onChange={(e) => setOriginIndex(Number(e.target.value))}
-                className="w-full bg-transparent text-white text-xs font-medium focus:outline-none truncate cursor-pointer pt-0.5"
-              >
-                {PRESET_LOCATIONS.map((loc, i) => (
-                  <option key={loc.name} value={i} className="bg-[#0B1220] text-white">
-                    {loc.name} ({loc.desc})
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="relative">
+            <PlaceAutocompleteInput
+              id="origin-input"
+              label="Starting Point"
+              placeholder="Search origin or landmark in Tumakuru..."
+              value={originPlace}
+              onChange={onChangeOrigin}
+              onPickOnMap={() => onStartPickOnMap?.("origin")}
+              isPickingOnMap={activePickingTarget === "origin"}
+              accentColor="green"
+            />
           </div>
 
-          {/* Destination */}
-          <div className="flex items-center gap-2.5 bg-[#0B1220] border border-slate-800 focus-within:border-cyan-500/60 p-2.5 rounded-xl transition">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-            <div className="flex-1 min-w-0">
-              <label htmlFor="dest-select" className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Destination
-              </label>
-              <select
-                id="dest-select"
-                value={destIndex}
-                onChange={(e) => setDestIndex(Number(e.target.value))}
-                className="w-full bg-transparent text-white text-xs font-medium focus:outline-none truncate cursor-pointer pt-0.5"
-              >
-                {PRESET_LOCATIONS.map((loc, i) => (
-                  <option key={loc.name} value={i} className="bg-[#0B1220] text-white">
-                    {loc.name} ({loc.desc})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Swap Button & Current Location Shortcut */}
+          <div className="flex items-center justify-between px-1">
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={isLocating}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 py-0.5 transition"
+            >
+              {isLocating ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Compass className="w-3 h-3" />
+              )}
+              <span>Use My Location</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSwap}
+              disabled={!originPlace && !destinationPlace}
+              title="Swap origin and destination"
+              className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition flex items-center gap-1 text-[10px]"
+            >
+              <ArrowUpDown className="w-3 h-3" />
+              <span className="hidden sm:inline">Swap</span>
+            </button>
+          </div>
+
+          <div className="relative">
+            <PlaceAutocompleteInput
+              id="dest-input"
+              label="Destination"
+              placeholder="Search destination or address..."
+              value={destinationPlace}
+              onChange={onChangeDestination}
+              onPickOnMap={() => onStartPickOnMap?.("destination")}
+              isPickingOnMap={activePickingTarget === "destination"}
+              accentColor="red"
+            />
           </div>
         </div>
+
+        {/* Quick Suggestion Chips */}
+        {!originPlace && !destinationPlace && (
+          <div className="pt-1">
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block mb-1.5">
+              Popular Landmarks:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {TUMAKURU_FALLBACK_PRESETS.slice(0, 4).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onChangeDestination(p)}
+                  className="text-[10px] bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700/60 truncate transition"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Action Button */}
         <button
           onClick={handleComputeRoute}
-          disabled={isLoading || originIndex === destIndex}
-          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#38BDF8] via-[#0EA5E9] to-[#20D6C2] hover:opacity-95 text-[#0B1220] font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-cyan-950/40 flex items-center justify-center gap-2 disabled:opacity-50 touch-target"
+          disabled={isLoading || !originPlace || !destinationPlace}
+          className="w-full py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin text-[#0B1220]" />
-              <span>Verifying 3-Check Hydrological Evidence...</span>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Analyzing Street Topography & Rain...</span>
             </>
           ) : (
             <>
-              <span>Find Safest Route</span>
+              <span>Find Rain-Safe Routes</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
 
         {errorMessage && (
-          <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
       </div>
 
-      {/* Route Results & Preferences */}
+      {/* Comparison Cards (Fastest vs Safest vs Balanced) */}
       {routeResult && (
-        <div className="bg-[#142235]/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 sm:p-4 shadow-xl space-y-3">
-          {/* Header & Toggle */}
-          <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Route Choices
-              </span>
-              <span className="text-[10px] text-slate-400">
-                ({Math.round(currentRain)} mm rain expected)
-              </span>
-            </div>
-            <button
-              onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
-              className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition"
-              aria-label={isDetailsExpanded ? "Collapse route details" : "Expand route details"}
-            >
-              {isDetailsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Scale className="w-3.5 h-3.5 text-cyan-400" />
+              Route Comparisons
+            </span>
+            <span className="text-[10px] text-slate-400">
+              Select one to view on map
+            </span>
           </div>
 
-          {/* 3 Route Selection Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {/* 1. Fastest */}
-            <div
-              onClick={() => onSelectRouteDisplay("fastest")}
-              className={`p-2.5 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-                activeDisplayRoute === "fastest"
-                  ? "bg-slate-900 border-[#F59E0B] ring-1 ring-[#F59E0B] shadow-md shadow-amber-950/20"
-                  : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-[#F59E0B]" /> Fastest
-                </span>
-                <span className="text-[10px] text-slate-400 tabular-nums">
-                  {formatDistance(routeResult.fastest.distance_m)}
-                </span>
-              </div>
-              <div className="my-1">
-                <span className="text-base font-bold text-white tabular-nums">
-                  {formatDuration(routeResult.fastest.duration_s)}
-                </span>
-              </div>
-              <div className="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Flood Exposure:</span>
-                <span
-                  className={`font-bold tabular-nums ${
-                    routeResult.fastest.risk_score >= 60
-                      ? "text-[#EF4444]"
-                      : routeResult.fastest.risk_score >= 30
-                      ? "text-[#F59E0B]"
-                      : "text-[#22C55E]"
-                  }`}
-                >
-                  {routeResult.fastest.risk_score}/100
-                </span>
-              </div>
-            </div>
-
-            {/* 2. Rain-Safer */}
+            {/* Safest / Rain-Safer Card */}
             <div
               onClick={() => onSelectRouteDisplay("safest")}
-              className={`p-2.5 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+              className={`p-3 rounded-2xl cursor-pointer transition border relative ${
                 activeDisplayRoute === "safest"
-                  ? "bg-slate-900 border-[#20D6C2] ring-1 ring-[#20D6C2] shadow-md shadow-teal-950/20"
-                  : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                  ? "bg-[#142235] border-cyan-400 shadow-[0_0_15px_rgba(32,214,194,0.15)] ring-1 ring-cyan-400"
+                  : "bg-[#0E1726]/80 hover:bg-[#142235]/60 border-slate-800"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-[#20D6C2] flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> Lower Hazard
+              {routeResult.recommendation === "safest" && (
+                <span className="absolute -top-2 right-3 text-[9px] font-bold bg-[#20D6C2] text-slate-950 px-2 py-0.5 rounded-full shadow">
+                  RECOMMENDED
                 </span>
-                <span className="text-[10px] text-slate-400 tabular-nums">
-                  {formatDistance(routeResult.safest.distance_m)}
-                </span>
+              )}
+              <div className="flex items-center gap-1.5 text-[#20D6C2] text-xs font-bold mb-1">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Rain-Safer</span>
               </div>
-              <div className="my-1 flex items-baseline gap-1.5">
-                <span className="text-base font-bold text-white tabular-nums">
-                  {formatDuration(routeResult.safest.duration_s)}
-                </span>
-                {(routeResult.safest.delay_vs_fastest_s || 0) > 0 && (
-                  <span className="text-[10px] text-amber-400 font-medium">
-                    +{Math.round((routeResult.safest.delay_vs_fastest_s || 0) / 60)}m
-                  </span>
-                )}
+              <div className="text-lg font-black text-white">
+                {formatDuration(routeResult.safest.duration_s)}
               </div>
-              <div className="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Flood Exposure:</span>
-                <span className="font-bold text-[#22C55E] tabular-nums">
-                  {routeResult.safest.risk_score}/100
+              <div className="text-[11px] text-slate-400 flex items-center justify-between mt-1">
+                <span>{formatDistance(routeResult.safest.distance_m)}</span>
+                <span className="font-semibold text-emerald-400">
+                  Risk {routeResult.safest.risk_score}/100
                 </span>
               </div>
             </div>
 
-            {/* 3. Balanced */}
+            {/* Balanced Card */}
+            {routeResult.balanced && (
+              <div
+                onClick={() => onSelectRouteDisplay("balanced")}
+                className={`p-3 rounded-2xl cursor-pointer transition border relative ${
+                  activeDisplayRoute === "balanced"
+                    ? "bg-[#142235] border-cyan-400 shadow-[0_0_15px_rgba(56,189,248,0.15)] ring-1 ring-cyan-400"
+                    : "bg-[#0E1726]/80 hover:bg-[#142235]/60 border-slate-800"
+                }`}
+              >
+                {routeResult.recommendation === "balanced" && (
+                  <span className="absolute -top-2 right-3 text-[9px] font-bold bg-cyan-400 text-slate-950 px-2 py-0.5 rounded-full shadow">
+                    BALANCED
+                  </span>
+                )}
+                <div className="flex items-center gap-1.5 text-cyan-400 text-xs font-bold mb-1">
+                  <Scale className="w-4 h-4" />
+                  <span>Balanced</span>
+                </div>
+                <div className="text-lg font-black text-white">
+                  {formatDuration(routeResult.balanced.duration_s)}
+                </div>
+                <div className="text-[11px] text-slate-400 flex items-center justify-between mt-1">
+                  <span>{formatDistance(routeResult.balanced.distance_m)}</span>
+                  <span className="font-semibold text-cyan-400">
+                    Risk {routeResult.balanced.risk_score}/100
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Fastest Card */}
             <div
-              onClick={() => onSelectRouteDisplay("balanced")}
-              className={`p-2.5 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-                activeDisplayRoute === "balanced"
-                  ? "bg-slate-900 border-[#38BDF8] ring-1 ring-[#38BDF8] shadow-md shadow-cyan-950/20"
-                  : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+              onClick={() => onSelectRouteDisplay("fastest")}
+              className={`p-3 rounded-2xl cursor-pointer transition border relative ${
+                activeDisplayRoute === "fastest"
+                  ? "bg-[#142235] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-400"
+                  : "bg-[#0E1726]/80 hover:bg-[#142235]/60 border-slate-800"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
-                  <Scale className="w-3 h-3 text-[#38BDF8]" /> Balanced
-                </span>
-                <span className="text-[10px] text-slate-400 tabular-nums">
-                  {formatDistance((routeResult.balanced || routeResult.safest).distance_m)}
-                </span>
+              <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold mb-1">
+                <Zap className="w-4 h-4" />
+                <span>Fastest</span>
               </div>
-              <div className="my-1">
-                <span className="text-base font-bold text-white tabular-nums">
-                  {formatDuration((routeResult.balanced || routeResult.safest).duration_s)}
-                </span>
+              <div className="text-lg font-black text-white">
+                {formatDuration(routeResult.fastest.duration_s)}
               </div>
-              <div className="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Flood Exposure:</span>
-                <span className="font-bold text-cyan-400 tabular-nums">
-                  {(routeResult.balanced || routeResult.safest).risk_score}/100
+              <div className="text-[11px] text-slate-400 flex items-center justify-between mt-1">
+                <span>{formatDistance(routeResult.fastest.distance_m)}</span>
+                <span className="font-semibold text-amber-400">
+                  Risk {routeResult.fastest.risk_score}/100
                 </span>
               </div>
             </div>
@@ -351,15 +440,26 @@ export function JourneyPlanner({
 
           {/* 3-Check Geospatial Evidence Summary */}
           {isDetailsExpanded && evidence && (
-            <div className="p-3 rounded-xl bg-[#0B1220] border border-slate-800 space-y-2 text-xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                3-Check Evidence Audit for this Route
-              </span>
+            <div className="bg-[#142235]/95 border border-slate-700/80 rounded-2xl p-3.5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    3-Check Evidence Audit for this Route
+                  </span>
+                </div>
+                <button
+                  onClick={() => onOpenStatusDrawer && onOpenStatusDrawer()}
+                  className="text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold underline"
+                >
+                  Inspect API Sources
+                </button>
+              </div>
 
-              {/* Check 1: Current & Forecast Rain */}
+              {/* Check 1: Forecast Precipitation */}
               <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-cyan-400 flex items-center gap-1.5 text-[11px]">
+                  <span className="font-semibold text-sky-400 flex items-center gap-1.5 text-[11px]">
                     <CloudRain className="w-3.5 h-3.5" /> Check A: Current & Forecast Rain
                   </span>
                   <span className="text-[10px] text-slate-300 font-bold tabular-nums">

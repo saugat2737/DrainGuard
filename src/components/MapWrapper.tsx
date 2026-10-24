@@ -4,6 +4,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { Zone, ZoneRisk } from "@/lib/types";
 import { HazardHotspot } from "@/lib/routing";
+import { GeocodePlace } from "@/lib/geocoding";
 
 const MapView = dynamic(() => import("./MapView"), {
   ssr: false,
@@ -30,6 +31,16 @@ interface MapWrapperProps {
   hazardHotspots?: HazardHotspot[];
   onSelectHotspot?: (zoneId: string) => void;
   basemapId?: "osm_streets" | "opentopo_terrain";
+  // Pick on map & search props
+  isPickingOnMap?: boolean;
+  pickingTarget?: "origin" | "destination" | null;
+  onMapClickCoord?: (lat: number, lng: number) => void;
+  originPlace?: GeocodePlace | null;
+  destinationPlace?: GeocodePlace | null;
+  searchedPlace?: GeocodePlace | null;
+  onClearSearchedPlace?: () => void;
+  onSetSearchedPlaceAsOrigin?: (place: GeocodePlace) => void;
+  onSetSearchedPlaceAsDestination?: (place: GeocodePlace) => void;
 }
 
 export function MapWrapper(props: MapWrapperProps) {

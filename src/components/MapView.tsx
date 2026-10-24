@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,11 +8,15 @@ import {
   Polyline,
   CircleMarker,
   Tooltip,
+  Marker,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
+import L from "leaflet";
 import { Zone, ZoneRisk, RiskLevel } from "@/lib/types";
 import { HazardHotspot } from "@/lib/routing";
 import { BASEMAP_PROVIDERS } from "@/lib/basemaps";
+import { GeocodePlace } from "@/lib/geocoding";
 
 interface MapViewProps {
   zones: (Zone & { risk: ZoneRisk })[];
@@ -27,6 +31,16 @@ interface MapViewProps {
   hazardHotspots?: HazardHotspot[];
   onSelectHotspot?: (zoneId: string) => void;
   basemapId?: "osm_streets" | "opentopo_terrain";
+  // Pick on map & place search props
+  isPickingOnMap?: boolean;
+  pickingTarget?: "origin" | "destination" | null;
+  onMapClickCoord?: (lat: number, lng: number) => void;
+  originPlace?: GeocodePlace | null;
+  destinationPlace?: GeocodePlace | null;
+  searchedPlace?: GeocodePlace | null;
+  onClearSearchedPlace?: () => void;
+  onSetSearchedPlaceAsOrigin?: (place: GeocodePlace) => void;
+  onSetSearchedPlaceAsDestination?: (place: GeocodePlace) => void;
 }
 
 const RISK_COLORS: Record<RiskLevel, { stroke: string; fill: string; label: string }> = {
@@ -36,11 +50,30 @@ const RISK_COLORS: Record<RiskLevel, { stroke: string; fill: string; label: stri
   severe: { stroke: "#EF4444", fill: "#EF4444", label: "Severe" },
 };
 
-function MapRecenter({ center }: { center: [number, number] }) {
+// Smooth Camera Re-center
+function MapRecenter({ center, zoom }: { center: [number, number]; zoom?: number }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
+    map.flyTo(center, zoom ?? map.getZoom(), { duration: 1.2 });
+  }, [center, zoom, map]);
+  return null;
+}
+
+// Map Event Handler for Picking Points
+function MapClickHandler({
+  isPicking,
+  onPick,
+}: {
+  isPicking: boolean;
+  onPick?: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (isPicking && onPick) {
+        onPick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
   return null;
 }
 
@@ -57,6 +90,15 @@ export default function MapView({
   hazardHotspots = [],
   onSelectHotspot,
   basemapId = "osm_streets",
+  isPickingOnMap = false,
+  pickingTarget = null,
+  onMapClickCoord,
+  originPlace = null,
+  destinationPlace = null,
+  searchedPlace = null,
+  onClearSearchedPlace,
+  onSetSearchedPlaceAsOrigin,
+  onSetSearchedPlaceAsDestination,
 }: MapViewProps) {
   const activeBasemap = BASEMAP_PROVIDERS[basemapId] || BASEMAP_PROVIDERS.osm_streets;
 
@@ -73,7 +115,11 @@ export default function MapView({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[100%] overflow-hidden bg-[#0B1220]">
+    <div
+      className={`relative w-full h-full min-h-[100%] overflow-hidden bg-[#0B1220] ${
+        isPickingOnMap ? "cursor-crosshair" : ""
+      }`}
+    >
       <MapContainer
         center={center}
         zoom={zoom}
@@ -88,12 +134,13 @@ export default function MapView({
           maxZoom={activeBasemap.maxZoom}
         />
 
-        <MapRecenter center={center} />
+        <MapRecenter center={center} zoom={zoom} />
+        <MapClickHandler isPicking={isPickingOnMap} onPick={onMapClickCoord} />
 
         {/* Driving Route Polyline */}
         {routeGeometry && routeGeometry.length > 1 && (
           <>
-            {/* Outer shadow/casing */}
+            {/* Outer casing */}
             <Polyline
               positions={routeGeometry.map(([lng, lat]) => [lat, lng])}
               pathOptions={{
@@ -112,39 +159,108 @@ export default function MapView({
                 dashArray: routeType === "fastest" ? "8 6" : undefined,
               }}
             />
-            {/* Start & End Point Markers */}
-            <CircleMarker
-              center={[routeGeometry[0][1], routeGeometry[0][0]]}
-              radius={7}
-              pathOptions={{
-                color: "#FFFFFF",
-                fillColor: "#22C55E",
-                fillOpacity: 1,
-                weight: 2.5,
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -5]}>
-                <span className="font-semibold text-xs text-slate-900">Trip Origin</span>
-              </Tooltip>
-            </CircleMarker>
-            <CircleMarker
-              center={[
-                routeGeometry[routeGeometry.length - 1][1],
-                routeGeometry[routeGeometry.length - 1][0],
-              ]}
-              radius={7}
-              pathOptions={{
-                color: "#FFFFFF",
-                fillColor: "#EF4444",
-                fillOpacity: 1,
-                weight: 2.5,
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -5]}>
-                <span className="font-semibold text-xs text-slate-900">Destination</span>
-              </Tooltip>
-            </CircleMarker>
           </>
+        )}
+
+        {/* Origin Pin (Selected or Route Start) */}
+        {originPlace && (
+          <CircleMarker
+            center={[originPlace.lat, originPlace.lng]}
+            radius={9}
+            pathOptions={{
+              color: "#FFFFFF",
+              fillColor: "#22C55E",
+              fillOpacity: 1,
+              weight: 3,
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -6]} permanent={false}>
+              <div className="text-xs p-1 font-sans">
+                <span className="font-bold text-emerald-700 block">Trip Origin</span>
+                <span className="text-slate-900 font-semibold">{originPlace.name}</span>
+              </div>
+            </Tooltip>
+          </CircleMarker>
+        )}
+
+        {/* Destination Pin (Selected or Route End) */}
+        {destinationPlace && (
+          <CircleMarker
+            center={[destinationPlace.lat, destinationPlace.lng]}
+            radius={9}
+            pathOptions={{
+              color: "#FFFFFF",
+              fillColor: "#EF4444",
+              fillOpacity: 1,
+              weight: 3,
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -6]} permanent={false}>
+              <div className="text-xs p-1 font-sans">
+                <span className="font-bold text-rose-700 block">Destination</span>
+                <span className="text-slate-900 font-semibold">{destinationPlace.name}</span>
+              </div>
+            </Tooltip>
+          </CircleMarker>
+        )}
+
+        {/* Searched Landmark Marker */}
+        {searchedPlace && (
+          <CircleMarker
+            center={[searchedPlace.lat, searchedPlace.lng]}
+            radius={11}
+            pathOptions={{
+              color: "#0B1220",
+              fillColor: "#38BDF8",
+              fillOpacity: 0.95,
+              weight: 3,
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -8]} permanent={true}>
+              <div className="text-xs p-1.5 font-sans min-w-[160px]">
+                <div className="font-bold text-cyan-800 flex items-center justify-between">
+                  <span>Searched Location</span>
+                </div>
+                <div className="font-semibold text-slate-900 mt-0.5">{searchedPlace.name}</div>
+                <div className="text-[10px] text-slate-500 truncate mt-0.5">{searchedPlace.displayName}</div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {onSetSearchedPlaceAsOrigin && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSetSearchedPlaceAsOrigin(searchedPlace);
+                      }}
+                      className="text-[9px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2 py-0.5 rounded shadow"
+                    >
+                      Set Origin
+                    </button>
+                  )}
+                  {onSetSearchedPlaceAsDestination && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSetSearchedPlaceAsDestination(searchedPlace);
+                      }}
+                      className="text-[9px] bg-rose-600 hover:bg-rose-500 text-white font-bold px-2 py-0.5 rounded shadow"
+                    >
+                      Set Dest
+                    </button>
+                  )}
+                  {onClearSearchedPlace && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClearSearchedPlace();
+                      }}
+                      className="text-[9px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded"
+                    >
+                      Dismiss
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Tooltip>
+          </CircleMarker>
         )}
 
         {/* Grounded Flood Risk Zones Polygons / Polylines */}
@@ -171,7 +287,11 @@ export default function MapView({
                     dashArray: isSelected ? "4 4" : undefined,
                   }}
                   eventHandlers={{
-                    click: () => onSelectZone(zone),
+                    click: (e) => {
+                      if (!isPickingOnMap) {
+                        onSelectZone(zone);
+                      }
+                    },
                   }}
                 >
                   <Tooltip sticky direction="top" opacity={0.96}>
@@ -206,7 +326,11 @@ export default function MapView({
                     opacity: isSelected ? 0.95 : 0.8,
                   }}
                   eventHandlers={{
-                    click: () => onSelectZone(zone),
+                    click: (e) => {
+                      if (!isPickingOnMap) {
+                        onSelectZone(zone);
+                      }
+                    },
                   }}
                 >
                   <Tooltip sticky direction="top" opacity={0.96}>
@@ -263,8 +387,10 @@ export default function MapView({
                 }}
                 eventHandlers={{
                   click: () => {
-                    onSelectZone(matchedZone);
-                    if (onSelectHotspot) onSelectHotspot(spot.zone_id);
+                    if (!isPickingOnMap) {
+                      onSelectZone(matchedZone);
+                      if (onSelectHotspot) onSelectHotspot(spot.zone_id);
+                    }
                   },
                 }}
               >

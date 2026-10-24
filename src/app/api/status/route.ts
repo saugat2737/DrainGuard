@@ -164,11 +164,26 @@ export async function GET() {
     requires_credentials: false,
   };
 
+  // 8. Place Search & Reverse Geocoder (Photon / OpenStreetMap)
+  const geocodingItem: ServiceStatusItem = {
+    service: "geocoding",
+    name: "Photon Open-Data Geocoding & Landmark Search",
+    status: "available",
+    mode: "public_osm_api",
+    data_source: "Photon by Komoot (OpenStreetMap / Nominatim Open Database License) - Zero Cost",
+    last_success_at: new Date().toISOString(),
+    last_checked_at: new Date().toISOString(),
+    message: "Search-as-you-type and reverse geocoding active with Tumakuru geographic bias. Offline landmark fallback configured.",
+    coverage_or_scope: "Tumakuru Municipal Area & Global OSM Place Index",
+    requires_credentials: false,
+  };
+
   const services: ServiceStatusItem[] = [
     weatherItem,
     antecedentItem,
     routingItem,
     trafficItem,
+    geocodingItem,
     visionItem,
     riskEngineItem,
     reportsStoreItem,

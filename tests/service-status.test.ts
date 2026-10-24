@@ -26,6 +26,7 @@ describe("Service Status Transparency API & Diagnostic Logic", () => {
     expect(serviceNames).toContain("antecedent_rainfall");
     expect(serviceNames).toContain("routing");
     expect(serviceNames).toContain("traffic");
+    expect(serviceNames).toContain("geocoding");
     expect(serviceNames).toContain("vision_ai");
     expect(serviceNames).toContain("risk_engine");
     expect(serviceNames).toContain("reports_store");

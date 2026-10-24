@@ -9,9 +9,11 @@ import { WeatherModal } from "@/components/WeatherModal";
 import { LayerControls } from "@/components/LayerControls";
 import { ReportForm } from "@/components/ReportForm";
 import { ServiceStatusDrawer } from "@/components/ServiceStatusDrawer";
+import { MapSearchBar } from "@/components/MapSearchBar";
 import { Zone, ZoneRisk } from "@/lib/types";
 import { RouteComparisonResult } from "@/lib/routing";
 import { HourlyForecastItem } from "@/lib/weather";
+import { GeocodePlace, TUMAKURU_CENTROID, TUMAKURU_FALLBACK_PRESETS } from "@/lib/geocoding";
 import {
   AlertCircle,
   RefreshCw,
@@ -23,6 +25,8 @@ import {
   MapPin,
   ShieldAlert,
   Server,
+  Check,
+  X,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -52,9 +56,20 @@ export default function HomePage() {
   const [showReportsLayer, setShowReportsLayer] = useState<boolean>(true);
   const [basemapId, setBasemapId] = useState<"osm_streets" | "opentopo_terrain">("osm_streets");
 
-  // Routing state
+  // Routing & Places state
+  const [originPlace, setOriginPlace] = useState<GeocodePlace | null>(TUMAKURU_FALLBACK_PRESETS[0]); // Railway Station
+  const [destinationPlace, setDestinationPlace] = useState<GeocodePlace | null>(TUMAKURU_FALLBACK_PRESETS[1]); // KSRTC Bus Stand
   const [routeResult, setRouteResult] = useState<RouteComparisonResult | null>(null);
   const [activeDisplayRoute, setActiveDisplayRoute] = useState<"fastest" | "safest" | "balanced">("safest");
+
+  // Map camera & searched landmark state
+  const [mapCenter, setMapCenter] = useState<[number, number]>([TUMAKURU_CENTROID.lat, TUMAKURU_CENTROID.lng]);
+  const [mapZoom, setMapZoom] = useState<number>(14);
+  const [searchedPlace, setSearchedPlace] = useState<GeocodePlace | null>(null);
+
+  // "Pick on Map" mode state
+  const [pickingTarget, setPickingTarget] = useState<"origin" | "destination" | null>(null);
+  const [pendingPickCoord, setPendingPickCoord] = useState<{ lat: number; lng: number; label?: string } | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeRequestIdRef = useRef<number>(0);
@@ -142,11 +157,95 @@ export default function HomePage() {
   };
 
   const handleSelectZoneOnMap = (zone: Zone & { risk: ZoneRisk }) => {
+    if (pickingTarget) return; // Don't intercept when picking map coordinates
     setSelectedZoneId(zone.id);
     setActiveTab("zone");
     if (mobileSheetState === "collapsed") {
       setMobileSheetState("half");
     }
+  };
+
+  // Map Search selection handling
+  const handleSelectSearchedPlace = (
+    place: GeocodePlace,
+    action: "fly" | "set_origin" | "set_dest" = "fly"
+  ) => {
+    setMapCenter([place.lat, place.lng]);
+    setMapZoom(16);
+    setSearchedPlace(place);
+
+    if (action === "set_origin") {
+      setOriginPlace(place);
+      setActiveTab("journey");
+    } else if (action === "set_dest") {
+      setDestinationPlace(place);
+      setActiveTab("journey");
+    }
+  };
+
+  // Pick on Map start
+  const handleStartPickOnMap = (target: "origin" | "destination") => {
+    setPickingTarget(target);
+    setPendingPickCoord(null);
+    // Collapse bottom sheet on mobile so full map is visible
+    setMobileSheetState("collapsed");
+  };
+
+  // Handle map click while in picking mode
+  const handleMapClickCoord = async (lat: number, lng: number) => {
+    if (!pickingTarget) return;
+
+    setPendingPickCoord({ lat, lng, label: "Resolving address..." });
+
+    try {
+      const res = await fetch(`/api/geocode?mode=reverse&lat=${lat}&lng=${lng}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          setPendingPickCoord({ lat, lng, label: json.data.name });
+          return;
+        }
+      }
+    } catch {
+      // Fallback label
+    }
+
+    setPendingPickCoord({
+      lat,
+      lng,
+      label: `Point (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+    });
+  };
+
+  // Confirm picked point
+  const handleConfirmPick = () => {
+    if (!pendingPickCoord || !pickingTarget) return;
+
+    const newPlace: GeocodePlace = {
+      id: `picked-${pendingPickCoord.lat.toFixed(5)}-${pendingPickCoord.lng.toFixed(5)}`,
+      name: pendingPickCoord.label || `Picked Location`,
+      displayName: `Picked on Map (${pendingPickCoord.lat.toFixed(4)}° N, ${pendingPickCoord.lng.toFixed(4)}° E)`,
+      lat: pendingPickCoord.lat,
+      lng: pendingPickCoord.lng,
+    };
+
+    if (pickingTarget === "origin") {
+      setOriginPlace(newPlace);
+    } else {
+      setDestinationPlace(newPlace);
+    }
+
+    setPickingTarget(null);
+    setPendingPickCoord(null);
+    setMobileSheetState("half");
+    setActiveTab("journey");
+  };
+
+  // Cancel picking mode
+  const handleCancelPick = () => {
+    setPickingTarget(null);
+    setPendingPickCoord(null);
+    setMobileSheetState("half");
   };
 
   const selectedZone = zones.find((z) => z.id === selectedZoneId) || null;
@@ -204,8 +303,8 @@ export default function HomePage() {
                 zones={zones}
                 selectedZoneId={selectedZoneId}
                 onSelectZone={handleSelectZoneOnMap}
-                center={[13.3392, 77.1140]}
-                zoom={14}
+                center={mapCenter}
+                zoom={mapZoom}
                 routeGeometry={activeRouteGeometry}
                 routeType={activeDisplayRoute}
                 showRiskZones={showRiskZones}
@@ -216,9 +315,70 @@ export default function HomePage() {
                   setActiveTab("zone");
                 }}
                 basemapId={basemapId}
+                isPickingOnMap={!!pickingTarget}
+                pickingTarget={pickingTarget}
+                onMapClickCoord={handleMapClickCoord}
+                originPlace={originPlace}
+                destinationPlace={destinationPlace}
+                searchedPlace={searchedPlace}
+                onClearSearchedPlace={() => setSearchedPlace(null)}
+                onSetSearchedPlaceAsOrigin={(p) => {
+                  setOriginPlace(p);
+                  setSearchedPlace(null);
+                  setActiveTab("journey");
+                }}
+                onSetSearchedPlaceAsDestination={(p) => {
+                  setDestinationPlace(p);
+                  setSearchedPlace(null);
+                  setActiveTab("journey");
+                }}
               />
             )}
           </div>
+
+          {/* Floating Map Search Bar (Top-Center) */}
+          <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-[420] flex justify-center pointer-events-auto">
+            <MapSearchBar onSelectPlace={handleSelectSearchedPlace} />
+          </div>
+
+          {/* Dedicated "Pick on Map" Instruction & Action Banner */}
+          {pickingTarget && (
+            <div className="absolute top-16 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[460px] z-[460] bg-[#142235]/95 backdrop-blur-md border border-cyan-400/80 rounded-2xl p-3 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-cyan-400 animate-ping shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Tap map to choose {pickingTarget === "origin" ? "Starting Point" : "Destination"}
+                    </h4>
+                    <p className="text-[11px] text-cyan-300 truncate max-w-[240px]">
+                      {pendingPickCoord
+                        ? pendingPickCoord.label || `${pendingPickCoord.lat.toFixed(4)}, ${pendingPickCoord.lng.toFixed(4)}`
+                        : "Click anywhere on the streets to drop pin"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={handleConfirmPick}
+                    disabled={!pendingPickCoord}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-bold transition shadow"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Confirm</span>
+                  </button>
+                  <button
+                    onClick={handleCancelPick}
+                    className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    aria-label="Cancel picking"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Floating Map Layer Controls (Top-Right) */}
           <LayerControls
@@ -281,6 +441,12 @@ export default function HomePage() {
                   setActiveTab("zone");
                 }}
                 onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
+                onStartPickOnMap={handleStartPickOnMap}
+                activePickingTarget={pickingTarget}
+                originPlace={originPlace}
+                destinationPlace={destinationPlace}
+                onChangeOrigin={setOriginPlace}
+                onChangeDestination={setDestinationPlace}
               />
             ) : (
               <ZonePanel
@@ -298,7 +464,7 @@ export default function HomePage() {
               mobileSheetState === "collapsed"
                 ? "h-14"
                 : mobileSheetState === "half"
-                ? "h-[50vh]"
+                ? "h-[54vh]"
                 : "h-[85vh]"
             }`}
           >
@@ -362,6 +528,12 @@ export default function HomePage() {
                     setActiveTab("zone");
                   }}
                   onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
+                  onStartPickOnMap={handleStartPickOnMap}
+                  activePickingTarget={pickingTarget}
+                  originPlace={originPlace}
+                  destinationPlace={destinationPlace}
+                  onChangeOrigin={setOriginPlace}
+                  onChangeDestination={setDestinationPlace}
                 />
               ) : (
                 <ZonePanel
