@@ -76,7 +76,7 @@ export function MapSearchBar({ onSelectPlace }: MapSearchBarProps) {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-sm">
+    <div ref={containerRef} className="relative w-full max-w-md">
       <div className="flex items-center gap-2 bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] rounded-2xl px-3 py-2 shadow-xl focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/20 transition">
         <Search className="w-4 h-4 text-cyan-500 shrink-0" />
         <input

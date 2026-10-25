@@ -396,7 +396,7 @@ export default function HomePage() {
           </div>
 
           {/* Floating Map Search Bar (Top-Center) */}
-          <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-[420] flex justify-center pointer-events-auto">
+          <div className="absolute top-3 sm:top-4 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-[420px] md:w-[460px] z-[420] flex justify-center pointer-events-auto">
             <MapSearchBar onSelectPlace={handleSelectSearchedPlace} />
           </div>
 
