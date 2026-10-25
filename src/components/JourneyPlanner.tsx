@@ -295,7 +295,7 @@ export function JourneyPlanner({
         {/* Quick Suggestion Chips */}
         {!originPlace && !destinationPlace && (
           <div className="pt-1">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block mb-1.5">
+            <span className="text-[9px] uppercase tracking-wider text-[var(--dg-text-muted)] font-semibold block mb-1.5">
               Popular Landmarks:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -316,7 +316,7 @@ export function JourneyPlanner({
         <button
           onClick={handleComputeRoute}
           disabled={isLoading || !originPlace || !destinationPlace}
-          className="w-full py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg disabled:cursor-not-allowed"
+          className="w-full py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-[var(--dg-surface-muted)] disabled:text-[var(--dg-text-muted)] disabled:border disabled:border-[var(--dg-border-subtle)] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
@@ -332,7 +332,7 @@ export function JourneyPlanner({
         </button>
 
         {errorMessage && (
-          <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -343,11 +343,11 @@ export function JourneyPlanner({
       {routeResult && (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-[var(--dg-text)] uppercase tracking-wider flex items-center gap-1.5">
               <Scale className="w-3.5 h-3.5 text-cyan-400" />
               Route Comparisons
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-[var(--dg-text-muted)]">
               Select one to view on map
             </span>
           </div>
@@ -532,31 +532,31 @@ export function JourneyPlanner({
 
               {/* Hazards along this route with geographic grounding */}
               {activeRouteData.hazard_hotspots && activeRouteData.hazard_hotspots.length > 0 ? (
-                <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-900/40 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between text-rose-300 font-bold text-[11px]">
-                    <span className="flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5" />
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-xs space-y-2">
+                  <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 font-bold text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
                       Known Hazard Corridors Along This Path
                     </span>
-                    <span>{activeRouteData.hazard_hotspots.length} Choke Point(s)</span>
+                    <span className="tabular-nums font-mono">{activeRouteData.hazard_hotspots.length} Choke Point(s)</span>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {activeRouteData.hazard_hotspots.map((spot: HazardHotspot) => (
                       <button
                         key={spot.zone_id}
                         onClick={() => onSelectHotspot && onSelectHotspot(spot.zone_id)}
-                        className="w-full text-left p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/40 text-[11px] text-slate-200 flex items-center justify-between transition"
+                        className="w-full text-left p-2 rounded-lg bg-[var(--dg-surface-card)] hover:bg-[var(--dg-surface-hover)] border border-rose-500/30 text-xs text-[var(--dg-text)] flex items-center justify-between transition shadow-sm"
                       >
                         <div>
-                          <span className="font-semibold text-white block">{spot.zone_name}</span>
-                          <span className="text-rose-400 text-[10px]">{spot.reason}</span>
+                          <span className="font-bold text-[var(--dg-text)] block">{spot.zone_name}</span>
+                          <span className="text-rose-600 dark:text-rose-400 text-[11px]">{spot.reason}</span>
                           {spot.geographic_justification && (
-                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                            <span className="text-[10px] text-[var(--dg-text-muted)] block mt-0.5">
                               {spot.geographic_justification}
                             </span>
                           )}
                         </div>
-                        <span className="font-bold text-rose-300 tabular-nums shrink-0 ml-2">
+                        <span className="font-bold text-rose-600 dark:text-rose-400 tabular-nums shrink-0 ml-2 text-xs">
                           {spot.risk_score}/100
                         </span>
                       </button>
@@ -564,8 +564,8 @@ export function JourneyPlanner({
                   </div>
                 </div>
               ) : (
-                <div className="p-2 rounded-xl bg-emerald-950/25 border border-emerald-900/40 text-emerald-300 text-[11px] flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>This route avoids all critical severe-risk waterlogging areas.</span>
                 </div>
               )}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const viewport: Viewport = {
   themeColor: [
@@ -15,6 +16,11 @@ export const metadata: Metadata = {
   title: "DrainGuard — Urban Waterlogging & Drain Risk Intelligence",
   description: "Street-level rain warnings for citizens + ranked municipal inspection queue. Smart City and Urban Innovation.",
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "DrainGuard",
+  },
   icons: {
     icon: [
       { url: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -53,7 +59,10 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-[var(--dg-page-bg)] text-[var(--dg-text)] antialiased selection:bg-[#20D6C2]/30 selection:text-white transition-colors">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <ServiceWorkerRegister />
+        </ThemeProvider>
       </body>
     </html>
   );
