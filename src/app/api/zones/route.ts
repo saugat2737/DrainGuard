@@ -80,12 +80,13 @@ export async function GET(request: NextRequest) {
         zones: zonesWithRisk,
       },
     });
-  } catch {
+  } catch (error: any) {
+    console.error("[/api/zones] Error processing zones risk:", error);
     return NextResponse.json(
       {
         error: {
           code: "INTERNAL_ERROR",
-          message: "An unexpected error occurred while processing zones risk.",
+          message: error?.message || "An unexpected error occurred while processing zones risk.",
         },
       },
       { status: 500 }

@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "DrainGuard",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   icons: {
     icon: [
       { url: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -42,6 +45,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        <meta name="mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

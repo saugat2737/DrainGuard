@@ -36,7 +36,22 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  // Only handle HTTP/HTTPS GET requests; ignore chrome-extension://, ws://, etc.
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  var url;
+  try {
+    url = new URL(event.request.url);
+  } catch (e) {
+    return;
+  }
+
+  // Strictly skip non-HTTP(S) schemes (e.g. chrome-extension://, moz-extension://)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
 
   // Allow API routes to be handled live or by Next.js app cache
   if (url.pathname.startsWith('/api/')) {
@@ -44,21 +59,19 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Stale-while-revalidate for static shell assets and navigation
-  if (event.request.method === 'GET') {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        }).catch(() => cachedResponse);
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache).catch(() => {});
+          });
+        }
+        return networkResponse;
+      }).catch(() => cachedResponse);
 
-        return cachedResponse || fetchPromise;
-      })
-    );
-  }
+      return cachedResponse || fetchPromise;
+    })
+  );
 });
