@@ -14,7 +14,7 @@ export async function PATCH(
 ) {
   try {
     const repo = getRepository();
-    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE !== "true") {
+    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE === "false") {
       return NextResponse.json(
         {
           error: {

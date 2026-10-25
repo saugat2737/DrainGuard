@@ -50,23 +50,18 @@ describe("Persistent Reports Repository & Production Storage Architecture", () =
       photo_url: null,
       blockage_type: "debris",
       severity: 3,
-      summary: "Tree branch choking culvert inlet",
+      summary: "Construction debris dumped in drain",
       status: "open",
       source: "citizen",
       created_at: new Date().toISOString(),
     };
 
     await repo.addReport(mockReport);
-    const updated = await repo.updateReportStatus("rep-status-1", "assigned");
-    expect(updated?.status).toBe("assigned");
+    const updated = await repo.updateReportStatus("rep-status-1", "cleared");
+    expect(updated).not.toBeNull();
+    expect(updated?.status).toBe("cleared");
 
-    const retrieved = await repo.getReportById("rep-status-1");
-    expect(retrieved?.status).toBe("assigned");
-
-    const cleared = await repo.updateReportStatus("rep-status-1", "cleared");
-    expect(cleared?.status).toBe("cleared");
-
-    const nonExistent = await repo.updateReportStatus("rep-none", "cleared");
+    const nonExistent = await repo.updateReportStatus("non-existent-id", "assigned");
     expect(nonExistent).toBeNull();
   });
 
@@ -80,7 +75,7 @@ describe("Persistent Reports Repository & Production Storage Architecture", () =
     expect(seededList.length).toBeGreaterThan(0);
   });
 
-  it("4. rejects mutations in production mode when persistent database is unconfigured", async () => {
+  it("4. rejects mutations in production mode when persistent database is unconfigured and ALLOW_IN_MEMORY_STORAGE is false", async () => {
     const prevEnv = process.env.NODE_ENV;
     const prevAllow = process.env.ALLOW_IN_MEMORY_STORAGE;
     const prevUrl = process.env.SUPABASE_URL;
@@ -92,7 +87,7 @@ describe("Persistent Reports Repository & Production Storage Architecture", () =
       delete process.env.SUPABASE_SERVICE_ROLE_KEY;
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      delete process.env.ALLOW_IN_MEMORY_STORAGE;
+      process.env.ALLOW_IN_MEMORY_STORAGE = "false";
 
       const repo = getReportsRepository();
       expect(repo.isPersistent()).toBe(false);

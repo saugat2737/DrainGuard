@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   try {
     const repo = getRepository();
     // In strict production mode without database credentials, return HTTP 503
-    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE !== "true") {
+    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE === "false") {
       return NextResponse.json(
         {
           error: {

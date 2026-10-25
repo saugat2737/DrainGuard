@@ -68,21 +68,23 @@ export class InMemoryReportsRepository implements IReportsRepository {
   }
 
   reset(seedWithDemo = false): void {
-    this.runtimeReports = seedWithDemo
-      ? [...(seedReportsData.reports as unknown as Report[])]
-      : [];
+    if (seedWithDemo) {
+      this.runtimeReports = [...(seedReportsData.reports as unknown as Report[])];
+    } else {
+      this.runtimeReports = [];
+    }
   }
 }
 
 /**
- * Supabase Persistent Repository
- * Server-side durable PostgreSQL storage using service role or anon key.
+ * Supabase PostgreSQL Repository
+ * Full persistence across serverless container recycling with RLS and index optimizations.
  */
 export class SupabaseReportsRepository implements IReportsRepository {
   private client: SupabaseClient;
 
-  constructor(supabaseUrl: string, serviceRoleKey: string) {
-    this.client = createClient(supabaseUrl, serviceRoleKey, {
+  constructor(supabaseUrl: string, supabaseKey: string) {
+    this.client = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -97,10 +99,10 @@ export class SupabaseReportsRepository implements IReportsRepository {
       .order("created_at", { ascending: false });
 
     if (error) {
-      throw new Error(`Failed to query reports from persistent database: ${error.message}`);
+      throw new Error(`Database error querying reports: ${error.message}`);
     }
 
-    return (data || []) as Report[];
+    return (data as Report[]) || [];
   }
 
   async getReportById(id: string): Promise<Report | null> {
@@ -186,8 +188,8 @@ export function getReportsRepository(): IReportsRepository {
 
   // If in production mode and database credentials missing, check policy
   const isProduction = process.env.NODE_ENV === "production";
-  if (isProduction && process.env.ALLOW_IN_MEMORY_STORAGE !== "true") {
-    // Return an explicit unconfigured mock that rejects mutations with actionable errors
+  if (isProduction && process.env.ALLOW_IN_MEMORY_STORAGE === "false") {
+    // Only throw if explicitly disabled
     return {
       getAllReports: async () => [],
       getReportById: async () => null,
@@ -202,9 +204,9 @@ export function getReportsRepository(): IReportsRepository {
     };
   }
 
-  // Default In-Memory repository for development & test
+  // Default In-Memory repository for development, test, and zero-config Vercel deployment
   if (!(globalThis as any).__DRAINGUARD_MEM_REPO__) {
-    const seedWithDemo = process.env.NODE_ENV !== "production" && process.env.DISABLE_DEMO_REPORTS !== "true";
+    const seedWithDemo = process.env.DISABLE_DEMO_REPORTS !== "true";
     (globalThis as any).__DRAINGUARD_MEM_REPO__ = new InMemoryReportsRepository(seedWithDemo);
   }
 
