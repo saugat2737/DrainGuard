@@ -182,10 +182,11 @@ function MunicipalDashboardContent() {
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-semibold text-[var(--dg-text)] transition touch-target"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-semibold text-[var(--dg-text)] transition touch-target"
+            title="Return to Commuter Map"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Commuter Map</span>
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Commuter Map</span>
           </Link>
           <div className="h-4 w-[1px] bg-[var(--dg-border)] hidden sm:block" />
           <div className="flex items-center gap-2">

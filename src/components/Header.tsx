@@ -84,20 +84,20 @@ export function Header({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#F43F5E] to-rose-600 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-semibold shadow-md shadow-rose-950/20 transition active:scale-95 touch-target"
             aria-label="Report blocked drain"
           >
-            <PlusCircle className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden xs:inline">Report Drain</span>
-            <span className="xs:hidden">Report</span>
+            <PlusCircle className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Report Drain</span>
           </button>
         )}
 
         {onOpenStatusDrawer && (
           <button
             onClick={onOpenStatusDrawer}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-medium text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] transition shadow-sm touch-target"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-medium text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] transition shadow-sm touch-target"
             title="Inspect Data & API Service Status"
+            aria-label="Inspect Data & API Service Status"
           >
-            <Server className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
-            <span>Data Status</span>
+            <Server className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0" />
+            <span className="hidden lg:inline">Data Status</span>
           </button>
         )}
 
@@ -106,8 +106,8 @@ export function Header({
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-medium text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] transition shadow-sm touch-target"
           title="Open Municipal Backlog"
         >
-          <Building2 className="w-3.5 h-3.5 text-[#0EA5E9]" />
-          <span className="hidden md:inline">Municipal</span>
+          <Building2 className="w-4 h-4 text-[#0EA5E9] shrink-0" />
+          <span className="hidden sm:inline">Municipal</span>
         </Link>
 
         <Link
@@ -115,8 +115,8 @@ export function Header({
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-medium text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)] transition shadow-sm touch-target"
           title="Risk Engine Methodology & Disclosures"
         >
-          <FileText className="w-3.5 h-3.5 text-[var(--dg-text-muted)]" />
-          <span className="hidden lg:inline">Methodology</span>
+          <FileText className="w-4 h-4 text-[var(--dg-text-muted)] shrink-0" />
+          <span className="hidden md:inline">Methodology</span>
         </Link>
 
         {/* Theme Toggle Button */}
