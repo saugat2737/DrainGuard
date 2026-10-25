@@ -47,12 +47,22 @@ export async function GET(request: NextRequest) {
     if (rawRain !== undefined && rawRain.trim() !== "") {
       rainMm = Number(rawRain);
     } else {
-      const weather = await getWeatherForecast();
-      rainMm = weather.rain_mm_next_3h;
+      try {
+        const weather = await getWeatherForecast();
+        rainMm = weather.rain_mm_next_3h;
+      } catch {
+        rainMm = 0;
+      }
     }
 
     const zones = zonesData.zones as unknown as Zone[];
-    const reports = await getAllReportsAsync();
+    let reports: Report[] = [];
+    try {
+      reports = await getAllReportsAsync();
+    } catch (repoErr) {
+      console.warn("[/api/zones] Storage warning, using fallback reports:", repoErr);
+      reports = [];
+    }
 
     // Group reports by zone_id
     const reportsByZone = new Map<string, Report[]>();

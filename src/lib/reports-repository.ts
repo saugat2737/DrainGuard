@@ -201,10 +201,10 @@ export function getReportsRepository(): IReportsRepository {
     return new SupabaseReportsRepository(supabaseUrl, serviceRoleKey);
   }
 
-  // If in production mode and database credentials missing, check policy
+  // Default In-Memory repository for development, test, and zero-config Vercel deployment
+  // Safe default: only block if explicitly configured to false AND NOT in automatic Vercel zero-config mode
   const isProduction = process.env.NODE_ENV === "production";
-  if (isProduction && process.env.ALLOW_IN_MEMORY_STORAGE === "false") {
-    // Only throw if explicitly disabled
+  if (isProduction && process.env.ALLOW_IN_MEMORY_STORAGE === "false" && process.env.VERCEL !== "1") {
     return {
       getAllReports: async () => [],
       getReportById: async () => null,
