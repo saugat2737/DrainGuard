@@ -82,8 +82,10 @@ export class InMemoryReportsRepository implements IReportsRepository {
  */
 export class SupabaseReportsRepository implements IReportsRepository {
   private client: SupabaseClient;
+  private fallbackMemory: InMemoryReportsRepository;
 
   constructor(supabaseUrl: string, supabaseKey: string) {
+    this.fallbackMemory = new InMemoryReportsRepository(true);
     this.client = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
@@ -107,72 +109,125 @@ export class SupabaseReportsRepository implements IReportsRepository {
     });
   }
 
+  private isSchemaCacheError(errMsg?: string): boolean {
+    if (!errMsg) return false;
+    const lower = errMsg.toLowerCase();
+    return (
+      lower.includes("could not find the table") ||
+      lower.includes("schema cache") ||
+      lower.includes("relation") && lower.includes("does not exist") ||
+      lower.includes("not found in schema cache")
+    );
+  }
+
   async getAllReports(): Promise<Report[]> {
-    const { data, error } = await this.client
-      .from("reports")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await this.client
+        .from("reports")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      throw new Error(`Database error querying reports: ${error.message}`);
+      if (error) {
+        if (this.isSchemaCacheError(error.message)) {
+          console.warn("[Supabase] Table public.reports missing in schema cache, serving seeded reports fallback:", error.message);
+          return this.fallbackMemory.getAllReports();
+        }
+        throw new Error(`Database error querying reports: ${error.message}`);
+      }
+
+      return (data as Report[]) || [];
+    } catch (err: any) {
+      if (this.isSchemaCacheError(err?.message)) {
+        return this.fallbackMemory.getAllReports();
+      }
+      throw err;
     }
-
-    return (data as Report[]) || [];
   }
 
   async getReportById(id: string): Promise<Report | null> {
-    const { data, error } = await this.client
-      .from("reports")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    try {
+      const { data, error } = await this.client
+        .from("reports")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
 
-    if (error) {
-      throw new Error(`Database error querying report ${id}: ${error.message}`);
+      if (error) {
+        if (this.isSchemaCacheError(error.message)) {
+          return this.fallbackMemory.getReportById(id);
+        }
+        throw new Error(`Database error querying report ${id}: ${error.message}`);
+      }
+
+      return (data as Report) || null;
+    } catch (err: any) {
+      if (this.isSchemaCacheError(err?.message)) {
+        return this.fallbackMemory.getReportById(id);
+      }
+      throw err;
     }
-
-    return (data as Report) || null;
   }
 
   async addReport(report: Report): Promise<Report> {
-    const { data, error } = await this.client
-      .from("reports")
-      .insert({
-        id: report.id,
-        lat: report.lat,
-        lng: report.lng,
-        zone_id: report.zone_id,
-        photo_url: report.photo_url,
-        blockage_type: report.blockage_type,
-        severity: report.severity,
-        summary: report.summary,
-        status: report.status,
-        source: report.source,
-        created_at: report.created_at,
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.client
+        .from("reports")
+        .insert({
+          id: report.id,
+          lat: report.lat,
+          lng: report.lng,
+          zone_id: report.zone_id,
+          photo_url: report.photo_url,
+          blockage_type: report.blockage_type,
+          severity: report.severity,
+          summary: report.summary,
+          status: report.status,
+          source: report.source,
+          created_at: report.created_at,
+        })
+        .select()
+        .single();
 
-    if (error) {
-      throw new Error(`Database error creating report: ${error.message}`);
+      if (error) {
+        if (this.isSchemaCacheError(error.message)) {
+          console.warn("[Supabase] Table public.reports not found in schema cache, saving to memory fallback");
+          return this.fallbackMemory.addReport(report);
+        }
+        throw new Error(`Database error creating report: ${error.message}`);
+      }
+
+      return data as Report;
+    } catch (err: any) {
+      if (this.isSchemaCacheError(err?.message)) {
+        return this.fallbackMemory.addReport(report);
+      }
+      throw err;
     }
-
-    return data as Report;
   }
 
   async updateReportStatus(id: string, newStatus: Report["status"]): Promise<Report | null> {
-    const { data, error } = await this.client
-      .from("reports")
-      .update({ status: newStatus })
-      .eq("id", id)
-      .select()
-      .maybeSingle();
+    try {
+      const { data, error } = await this.client
+        .from("reports")
+        .update({ status: newStatus })
+        .eq("id", id)
+        .select()
+        .maybeSingle();
 
-    if (error) {
-      throw new Error(`Database error updating status for ${id}: ${error.message}`);
+      if (error) {
+        if (this.isSchemaCacheError(error.message)) {
+          return this.fallbackMemory.updateReportStatus(id, newStatus);
+        }
+        throw new Error(`Database error updating status for ${id}: ${error.message}`);
+      }
+
+      return (data as Report) || null;
+    } catch (err: any) {
+      if (this.isSchemaCacheError(err?.message)) {
+        return this.fallbackMemory.updateReportStatus(id, newStatus);
+      }
+      throw err;
     }
-
-    return (data as Report) || null;
   }
 
   isPersistent(): boolean {
