@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "./ThemeProvider";
+import { PwaInstallPrompt } from "./PwaInstallPrompt";
 
 interface HeaderProps {
   onOpenReportModal?: () => void;
@@ -118,6 +119,9 @@ export function Header({
           <FileText className="w-4 h-4 text-[var(--dg-text-muted)] shrink-0" />
           <span className="hidden md:inline">Methodology</span>
         </Link>
+
+        {/* PWA Install Button */}
+        <PwaInstallPrompt />
 
         {/* Theme Toggle Button */}
         <ThemeToggle />
