@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getWeatherForecast, getMapCoordinates, getAntecedentRainfall } from "@/lib/weather";
 import { getTrafficProviderStatus } from "@/lib/traffic";
-import { getAllReports } from "@/lib/reports-store";
+import { getAllReportsAsync, getRepository } from "@/lib/reports-store";
 import zonesData from "@/data/zones.seed.json";
 import {
   getAuditCache,
@@ -16,7 +16,8 @@ export async function GET() {
   const audit = getAuditCache();
   const coords = getMapCoordinates();
   const traffic = getTrafficProviderStatus();
-  const allReports = getAllReports();
+  const repo = getRepository();
+  const allReports = await getAllReportsAsync();
   const totalReports = allReports.length;
   const citizenCount = allReports.filter((r) => r.source === "citizen").length;
   const seedCount = allReports.filter((r) => r.source === "seed").length;
@@ -200,7 +201,7 @@ export async function GET() {
     environment: {
       city: "Tumakuru, Karnataka, India",
       coordinates: coords,
-      storage_type: "in_memory",
+      storage_type: repo.isPersistent() ? "database" : "in_memory",
       is_production: process.env.NODE_ENV === "production",
     },
   };

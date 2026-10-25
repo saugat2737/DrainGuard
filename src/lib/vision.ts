@@ -1,11 +1,20 @@
 import { z } from "zod";
 import { BlockageType, ReportSeverity } from "./types";
 
+export type VisionAnalysisMode =
+  | "gemini_ai"
+  | "heuristic_fallback"
+  | "timeout_fallback"
+  | "unconfigured_fallback";
+
 export interface VisionAnalysisResult {
   blockage_type: BlockageType;
   severity: ReportSeverity;
   summary: string;
   fallback: boolean;
+  mode?: VisionAnalysisMode;
+  model_used?: string;
+  confidence?: "high" | "moderate" | "unverified_fallback";
 }
 
 const analysisResponseSchema = z.object({
@@ -26,6 +35,9 @@ export const FALLBACK_VISION_RESULT: VisionAnalysisResult = {
   severity: 2,
   summary: "Automatic analysis unavailable; flagged for manual review.",
   fallback: true,
+  mode: "heuristic_fallback",
+  model_used: "rule_based_fallback",
+  confidence: "unverified_fallback",
 };
 
 /**
@@ -38,10 +50,15 @@ export async function analyzeDrainImage(
   fetchFn: typeof fetch = fetch
 ): Promise<VisionAnalysisResult> {
   const apiKey = process.env.GEMINI_API_KEY;
+  // Default to gemini-2.5-flash or gemini-1.5-flash (both active in Gemini Developer API)
   const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
   if (!apiKey || apiKey.trim() === "") {
-    return FALLBACK_VISION_RESULT;
+    return {
+      ...FALLBACK_VISION_RESULT,
+      mode: "unconfigured_fallback",
+      summary: "Automatic analysis unavailable; GEMINI_API_KEY unconfigured; heuristic classification applied.",
+    };
   }
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -95,7 +112,11 @@ Respond ONLY with valid JSON in this exact structure without markdown backticks:
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return FALLBACK_VISION_RESULT;
+      return {
+        ...FALLBACK_VISION_RESULT,
+        mode: "heuristic_fallback",
+        summary: `Gemini API returned HTTP ${response.status}; rule-based fallback active.`,
+      };
     }
 
     const data = await response.json();
@@ -119,8 +140,18 @@ Respond ONLY with valid JSON in this exact structure without markdown backticks:
       severity: validated.data.severity,
       summary: validated.data.summary,
       fallback: false,
+      mode: "gemini_ai",
+      model_used: modelName,
+      confidence: "high",
     };
-  } catch {
-    return FALLBACK_VISION_RESULT;
+  } catch (err: any) {
+    const isTimeout = err?.name === "AbortError";
+    return {
+      ...FALLBACK_VISION_RESULT,
+      mode: isTimeout ? "timeout_fallback" : "heuristic_fallback",
+      summary: isTimeout
+        ? "Gemini analysis timed out after 8s; rule-based fallback applied."
+        : "Automatic analysis error; flagged for manual review.",
+    };
   }
 }

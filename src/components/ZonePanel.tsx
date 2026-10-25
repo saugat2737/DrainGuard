@@ -10,7 +10,9 @@ import {
   X,
   PlusCircle,
   Compass,
+  Share2,
 } from "lucide-react";
+import { generateWhatsAppShareUrl } from "@/lib/share";
 
 interface ZonePanelProps {
   selectedZone: (Zone & { risk: ZoneRisk }) | null;
@@ -27,7 +29,7 @@ export function ZonePanel({
 }: ZonePanelProps) {
   if (!selectedZone) {
     return (
-      <div className="bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] rounded-2xl p-5 shadow-xl text-[var(--dg-text-secondary)] flex flex-col items-center text-center space-y-3 transition-colors">
+      <div className="bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-xl p-5 shadow-sm text-[var(--dg-text-secondary)] flex flex-col items-center text-center space-y-3 transition-colors">
         <div className="w-10 h-10 rounded-xl bg-[var(--dg-surface-elevated)] border border-[var(--dg-border)] flex items-center justify-center text-cyan-500">
           <Layers className="w-5 h-5" />
         </div>
@@ -90,7 +92,7 @@ export function ZonePanel({
   };
 
   return (
-    <div className="bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] rounded-2xl p-4 shadow-xl text-[var(--dg-text)] space-y-3.5 transition-colors">
+    <div className="bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-xl p-4 shadow-sm text-[var(--dg-text)] space-y-4 transition-colors">
       {/* Zone Header */}
       <div className="space-y-1.5 border-b border-[var(--dg-border-subtle)] pb-3">
         <div className="flex items-center justify-between">
@@ -199,16 +201,30 @@ export function ZonePanel({
         </div>
       </div>
 
-      {/* CTA: Report Blockage in this specific zone */}
-      {onOpenReportModal && (
-        <button
-          onClick={onOpenReportModal}
-          className="w-full py-2 px-3 rounded-xl bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-semibold text-[var(--dg-text)] flex items-center justify-center gap-1.5 transition touch-target"
+      {/* Citizen Sharing & Reporting Actions */}
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <a
+          href={generateWhatsAppShareUrl({
+            zone: selectedZone,
+            risk: risk,
+          })}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="py-2 px-3 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 transition touch-target text-center"
         >
-          <PlusCircle className="w-3.5 h-3.5 text-cyan-500" />
-          <span>Report Blocked Drain in {name}</span>
-        </button>
-      )}
+          <Share2 className="w-3.5 h-3.5" />
+          <span>Share Alert</span>
+        </a>
+        {onOpenReportModal && (
+          <button
+            onClick={onOpenReportModal}
+            className="py-2 px-3 rounded-xl bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-semibold text-[var(--dg-text)] flex items-center justify-center gap-1.5 transition touch-target"
+          >
+            <PlusCircle className="w-3.5 h-3.5 text-cyan-500" />
+            <span>Report Issue</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

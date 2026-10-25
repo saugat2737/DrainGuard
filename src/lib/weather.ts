@@ -202,7 +202,7 @@ export async function getWeatherForecast(
 
         // Next 6 hours timeline
         const timeline: HourlyForecastItem[] = [];
-        const timelineSlots = Math.min(6, time.length, precipitation.length);
+        const timelineSlots = Math.min(12, time.length, precipitation.length);
         for (let i = 0; i < timelineSlots; i++) {
           timeline.push({
             time: time[i],

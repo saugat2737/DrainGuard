@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { updateReportStatus } from "@/lib/reports-store";
+import { updateReportStatus, getRepository } from "@/lib/reports-store";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const repo = getRepository();
+    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE !== "true") {
+      return NextResponse.json(
+        {
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Persistent storage is unconfigured. Status change cannot be saved in production.",
+          },
+        },
+        { status: 503 }
+      );
+    }
+
     const reportId = params?.id;
     if (!reportId || reportId.trim() === "") {
       return NextResponse.json(
@@ -42,7 +55,7 @@ export async function PATCH(
     }
 
     const { status } = parseResult.data;
-    const updated = updateReportStatus(reportId, status);
+    const updated = await updateReportStatus(reportId, status);
 
     if (!updated) {
       return NextResponse.json(
@@ -59,15 +72,16 @@ export async function PATCH(
     return NextResponse.json({
       data: updated,
     });
-  } catch {
+  } catch (err: any) {
+    const isUnavailable = err?.message?.includes("PERSISTENT_STORAGE_UNAVAILABLE");
     return NextResponse.json(
       {
         error: {
-          code: "INTERNAL_ERROR",
-          message: "Failed to update report status.",
+          code: isUnavailable ? "SERVICE_UNAVAILABLE" : "INTERNAL_ERROR",
+          message: err?.message || "Failed to update report status.",
         },
       },
-      { status: 500 }
+      { status: isUnavailable ? 503 : 500 }
     );
   }
 }

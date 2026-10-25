@@ -13,11 +13,12 @@
 html.dark {
   /* Surface Tokens (Dark Theme Defaults) */
   --dg-page-bg: #0B1220;
-  --dg-surface-card: rgba(20, 34, 53, 0.95);
-  --dg-surface-elevated: #142235;
-  --dg-surface-muted: #0F172A;
-  --dg-surface-hover: #1E293B;
+  --dg-surface-card: #111C2E;
+  --dg-surface-elevated: #18263E;
+  --dg-surface-muted: #0D1626;
+  --dg-surface-hover: #1F304E;
   --dg-surface-input: #0B1220;
+  --dg-sidebar-bg: #0E1726;
 
   /* Text & Foreground Tokens */
   --dg-text: #F8FAFC;
@@ -60,11 +61,12 @@ html.dark {
 html.light {
   /* Surface Tokens (Light Theme) */
   --dg-page-bg: #F1F5F9;
-  --dg-surface-card: rgba(255, 255, 255, 0.96);
-  --dg-surface-elevated: #FFFFFF;
-  --dg-surface-muted: #F8FAFC;
+  --dg-surface-card: #FFFFFF;
+  --dg-surface-elevated: #F8FAFC;
+  --dg-surface-muted: #F1F5F9;
   --dg-surface-hover: #E2E8F0;
-  --dg-surface-input: #F8FAFC;
+  --dg-surface-input: #FFFFFF;
+  --dg-sidebar-bg: #FFFFFF;
 
   /* Text & Foreground Tokens (Targeting >4.5:1 WCAG contrast) */
   --dg-text: #0F172A;

@@ -50,6 +50,27 @@ const RISK_COLORS: Record<RiskLevel, { stroke: string; fill: string; label: stri
   severe: { stroke: "#EF4444", fill: "#EF4444", label: "Severe" },
 };
 
+
+// Auto invalidate map container dimensions on resize/sidebar toggle
+function MapResizeInvalidator() {
+  const map = useMap();
+  useEffect(() => {
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener("resize", handleResize);
+    // Call once shortly after mount to ensure initial dimensions are accurate
+    const t = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(t);
+    };
+  }, [map]);
+  return null;
+}
+
 // Smooth Camera Re-center
 function MapRecenter({ center, zoom }: { center: [number, number]; zoom?: number }) {
   const map = useMap();
@@ -134,6 +155,7 @@ export default function MapView({
           maxZoom={activeBasemap.maxZoom}
         />
 
+        <MapResizeInvalidator />
         <MapRecenter center={center} zoom={zoom} />
         <MapClickHandler isPicking={isPickingOnMap} onPick={onMapClickCoord} />
 

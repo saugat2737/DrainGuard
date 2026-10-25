@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import zonesData from "@/data/zones.seed.json";
-import { getAllReports } from "@/lib/reports-store";
+import { getAllReportsAsync } from "@/lib/reports-store";
 import { Zone, Report, RiskLevel } from "@/lib/types";
 import { calculateZoneRisk } from "@/lib/risk";
 import { getWeatherForecast } from "@/lib/weather";
@@ -16,6 +16,8 @@ export interface InspectionQueueItem {
   score_at_forecast_peak: number;
   open_reports: number;
   top_reason: string;
+  first_high_hour: string | null;
+  act_by: string | null;
 }
 
 const rainQuerySchema = z
@@ -65,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     const zones = zonesData.zones as unknown as Zone[];
-    const reports = getAllReports();
+    const reports = await getAllReportsAsync();
 
     // Group reports by zone_id
     const reportsByZone = new Map<string, Report[]>();
@@ -95,6 +97,37 @@ export async function GET(request: NextRequest) {
         ? topFactor.text
         : "Low baseline vulnerability";
 
+      // Priority 6: 12-hour timeline evaluation for clearance planning (CLEARANCE_BUFFER_HOURS = 2)
+      let first_high_hour: string | null = null;
+      let act_by: string | null = null;
+
+      if (weather.timeline && weather.timeline.length > 0) {
+        for (let i = 0; i < weather.timeline.length; i++) {
+          const item = weather.timeline[i];
+          const hourlyRisk = calculateZoneRisk(zone, item.rain_mm, zoneReports);
+          if (hourlyRisk.score >= 60) {
+            const highTime = new Date(item.time);
+            if (!isNaN(highTime.getTime())) {
+              first_high_hour = highTime.toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              });
+              const actByDate = new Date(highTime.getTime() - 2 * 60 * 60 * 1000);
+              act_by = actByDate.toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              });
+            } else {
+              first_high_hour = item.time;
+              act_by = item.time;
+            }
+            break;
+          }
+        }
+      }
+
       return {
         zone_id: zone.id,
         name: zone.name,
@@ -103,6 +136,8 @@ export async function GET(request: NextRequest) {
         score_at_forecast_peak: peakRisk.score,
         open_reports: openReportsCount,
         top_reason,
+        first_high_hour,
+        act_by,
       };
     });
 

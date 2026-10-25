@@ -13,8 +13,13 @@ import {
   Clock,
   ChevronRight,
   Droplets,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
-import { RiskLevel } from "@/lib/types";
+import { RiskLevel, Zone } from "@/lib/types";
+import zonesData from "@/data/zones.seed.json";
+import { generateMunicipalDispatchOrder } from "@/lib/share";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -26,6 +31,8 @@ interface InspectionItem {
   score_at_forecast_peak: number;
   open_reports: number;
   top_reason: string;
+  first_high_hour?: string | null;
+  act_by?: string | null;
 }
 
 interface ReportDetail {
@@ -57,6 +64,7 @@ function MunicipalDashboardContent() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
   const fetchInspectionsAndReports = useCallback(async (rainVal: number) => {
     setIsLoading(true);
@@ -94,6 +102,40 @@ function MunicipalDashboardContent() {
   useEffect(() => {
     fetchInspectionsAndReports(rainMm);
   }, [fetchInspectionsAndReports, rainMm]);
+
+
+  const handleCopyDispatchOrder = (zoneItem: InspectionItem) => {
+    const zones = zonesData.zones as unknown as Zone[];
+    const zoneDef = zones.find((z) => z.id === zoneItem.zone_id) || {
+      id: zoneItem.zone_id,
+      name: zoneItem.name,
+      geometry: { type: "LineString", coordinates: [] },
+      elevation_factor: 0.5,
+      history_factor: 0.5,
+      simulated: false,
+    };
+
+    const zoneReports = reports.filter((r) => r.zone_id === zoneItem.zone_id);
+
+    const orderText = generateMunicipalDispatchOrder({
+      zone: zoneDef as Zone,
+      risk: {
+        zone_id: zoneItem.zone_id,
+        score: zoneItem.score,
+        level: zoneItem.level,
+        factors: [],
+        explanation: zoneItem.top_reason,
+        linked_report_ids: zoneReports.map((r) => r.id),
+      },
+      reports: zoneReports as any,
+      firstHighHour: zoneItem.first_high_hour,
+      actBy: zoneItem.act_by,
+    });
+
+    navigator.clipboard.writeText(orderText);
+    setCopiedOrderId(zoneItem.zone_id);
+    setTimeout(() => setCopiedOrderId(null), 2500);
+  };
 
   const handleUpdateReportStatus = async (
     reportId: string,
@@ -290,9 +332,34 @@ function MunicipalDashboardContent() {
                 <span className="text-[10px] font-mono uppercase text-cyan-600 dark:text-cyan-400 font-bold block">
                   Catchment Detail: {selectedZoneItem.zone_id}
                 </span>
-                <h2 className="text-base font-bold text-[var(--dg-text)] mt-0.5">
-                  {selectedZoneItem.name}
-                </h2>
+                <div className="flex items-start justify-between gap-2 mt-0.5">
+                  <h2 className="text-base font-bold text-[var(--dg-text)]">
+                    {selectedZoneItem.name}
+                  </h2>
+                  <button
+                    onClick={() => handleCopyDispatchOrder(selectedZoneItem)}
+                    className="px-2.5 py-1 rounded-lg bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-hover)] border border-[var(--dg-border)] text-xs font-semibold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5 transition shrink-0"
+                    title="Copy formatted dispatch order to clipboard"
+                  >
+                    {copiedOrderId === selectedZoneItem.zone_id ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-500">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Dispatch Order</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                {selectedZoneItem.act_by && (
+                  <div className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-center justify-between text-xs text-rose-600 dark:text-rose-400">
+                    <span className="font-semibold">⚠️ Clearance Deadline (Act-By):</span>
+                    <span className="font-mono font-bold">{selectedZoneItem.act_by}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mt-2">
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${getLevelBadge(

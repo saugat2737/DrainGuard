@@ -282,9 +282,76 @@ export default function HomePage() {
           </button>
         </div>
       ) : (
-        <div className="flex-1 relative w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden">
-          {/* Viewport-filling Leaflet Map */}
-          <div className="absolute inset-0 z-0">
+        <div className="flex-1 w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] flex overflow-hidden relative">
+          {/* Dedicated Left Planning Sidebar (Desktop) */}
+          <aside className="hidden lg:flex flex-col w-[420px] xl:w-[440px] shrink-0 h-full border-r border-[var(--dg-border)] bg-[var(--dg-sidebar-bg)] z-20 overflow-hidden shadow-md">
+            {/* Sticky Sidebar Header with Mode/Tab Switcher */}
+            <div className="p-3.5 border-b border-[var(--dg-border-subtle)] bg-[var(--dg-surface-card)] shrink-0">
+              <div className="flex items-center gap-1 bg-[var(--dg-surface-muted)] p-1 rounded-xl border border-[var(--dg-border)]">
+                <button
+                  onClick={() => setActiveTab("journey")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition ${
+                    activeTab === "journey"
+                      ? "bg-[var(--dg-surface-card)] text-cyan-600 dark:text-cyan-400 border border-[var(--dg-border)] shadow-sm"
+                      : "text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)]"
+                  }`}
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>Trip Planner</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("zone")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition ${
+                    activeTab === "zone"
+                      ? "bg-[var(--dg-surface-card)] text-cyan-600 dark:text-cyan-400 border border-[var(--dg-border)] shadow-sm"
+                      : "text-[var(--dg-text-secondary)] hover:text-[var(--dg-text)]"
+                  }`}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Road Hazards</span>
+                  {selectedZone && (
+                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Panel Area with Reliable Scrollbar */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {activeTab === "journey" ? (
+                <JourneyPlanner
+                  currentRain={currentRain}
+                  isSimulated={isSimulated}
+                  onRoutesCalculated={(res) => setRouteResult(res)}
+                  onSelectRouteDisplay={(type) => setActiveDisplayRoute(type)}
+                  activeDisplayRoute={activeDisplayRoute}
+                  onSelectHotspot={(zoneId) => {
+                    setSelectedZoneId(zoneId);
+                    setActiveTab("zone");
+                  }}
+                  onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
+                  onStartPickOnMap={handleStartPickOnMap}
+                  activePickingTarget={pickingTarget}
+                  originPlace={originPlace}
+                  destinationPlace={destinationPlace}
+                  onChangeOrigin={setOriginPlace}
+                  onChangeDestination={setDestinationPlace}
+                />
+              ) : (
+                <ZonePanel
+                  selectedZone={selectedZone}
+                  currentRain={currentRain}
+                  onOpenReportModal={() => setIsReportModalOpen(true)}
+                  onClose={() => setActiveTab("journey")}
+                />
+              )}
+            </div>
+          </aside>
+
+          {/* Interactive Map Area occupying Remaining Viewport */}
+          <main className="flex-1 h-full relative overflow-hidden z-0">
+            <div className="absolute inset-0 z-0">
             {isZonesLoading ? (
               <div className="w-full h-full bg-[var(--dg-page-bg)] flex flex-col items-center justify-center text-[var(--dg-text-muted)] gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
@@ -388,67 +455,7 @@ export default function HomePage() {
             setBasemapId={setBasemapId}
           />
 
-          {/* Floating Desktop Panel (Left Sidebar Overlay) */}
-          <div className="hidden lg:block absolute top-4 left-4 z-[450] w-[420px] max-h-[calc(100vh-6rem)] overflow-y-auto space-y-3 pb-4 pointer-events-auto">
-            {/* Tab Switcher */}
-            <div className="flex items-center gap-1 bg-[var(--dg-surface-card)] backdrop-blur-md p-1 rounded-2xl border border-[var(--dg-border)] shadow-xl transition-colors">
-              <button
-                onClick={() => setActiveTab("journey")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition ${
-                  activeTab === "journey"
-                    ? "bg-[var(--dg-surface-elevated)] text-cyan-600 dark:text-cyan-400 border border-[var(--dg-border)] shadow-sm"
-                    : "text-[var(--dg-text-muted)] hover:text-[var(--dg-text)]"
-                }`}
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                <span>Trip Planner</span>
-              </button>
 
-              <button
-                onClick={() => setActiveTab("zone")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition ${
-                  activeTab === "zone"
-                    ? "bg-[var(--dg-surface-elevated)] text-cyan-600 dark:text-cyan-400 border border-[var(--dg-border)] shadow-sm"
-                    : "text-[var(--dg-text-muted)] hover:text-[var(--dg-text)]"
-                }`}
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Road Details</span>
-                {selectedZone && (
-                  <span className="w-2 h-2 rounded-full bg-cyan-500" />
-                )}
-              </button>
-            </div>
-
-            {/* Active Tab Content */}
-            {activeTab === "journey" ? (
-              <JourneyPlanner
-                currentRain={currentRain}
-                isSimulated={isSimulated}
-                onRoutesCalculated={(res) => setRouteResult(res)}
-                onSelectRouteDisplay={(type) => setActiveDisplayRoute(type)}
-                activeDisplayRoute={activeDisplayRoute}
-                onSelectHotspot={(zoneId) => {
-                  setSelectedZoneId(zoneId);
-                  setActiveTab("zone");
-                }}
-                onOpenStatusDrawer={() => setIsStatusDrawerOpen(true)}
-                onStartPickOnMap={handleStartPickOnMap}
-                activePickingTarget={pickingTarget}
-                originPlace={originPlace}
-                destinationPlace={destinationPlace}
-                onChangeOrigin={setOriginPlace}
-                onChangeDestination={setDestinationPlace}
-              />
-            ) : (
-              <ZonePanel
-                selectedZone={selectedZone}
-                currentRain={currentRain}
-                onOpenReportModal={() => setIsReportModalOpen(true)}
-                onClose={() => setActiveTab("journey")}
-              />
-            )}
-          </div>
 
           {/* Mobile Bottom Sheet */}
           <div
@@ -539,7 +546,7 @@ export default function HomePage() {
           </div>
 
           {/* Floating Map Bottom-Left Legend */}
-          <div className="hidden sm:flex absolute bottom-4 left-4 lg:left-[445px] z-[400] bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] px-3.5 py-2 rounded-xl shadow-xl text-[var(--dg-text)] text-xs items-center gap-3 transition-colors">
+          <div className="hidden sm:flex absolute bottom-4 left-4 z-[400] bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] px-3.5 py-2 rounded-xl shadow-xl text-[var(--dg-text)] text-xs items-center gap-3 transition-colors">
             <span className="font-bold text-[10px] uppercase tracking-wider text-[var(--dg-text-muted)]">
               Flood Hazard:
             </span>
@@ -556,6 +563,7 @@ export default function HomePage() {
               <span className="w-2 h-2 rounded-full bg-[#EF4444]" /> Severe (80-100)
             </span>
           </div>
+          </main>
         </div>
       )}
 

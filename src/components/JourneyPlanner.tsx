@@ -208,20 +208,20 @@ export function JourneyPlanner({
   const evidence = activeRouteData?.evidence_check;
 
   return (
-    <div className="flex flex-col space-y-3">
-      {/* Origin & Destination Search Bar */}
-      <div className="bg-[var(--dg-surface-card)] backdrop-blur-md border border-[var(--dg-border)] rounded-2xl p-3 sm:p-4 shadow-xl space-y-3 text-[var(--dg-text)] transition-colors">
+    <div className="flex flex-col space-y-4">
+      {/* Origin & Destination Search Card */}
+      <div className="bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-xl p-4 shadow-sm space-y-3.5 text-[var(--dg-text)] transition-colors">
         <div className="flex items-center justify-between pb-2 border-b border-[var(--dg-border-subtle)]">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-500">
               <Navigation className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--dg-text)]">
-                Plan a Rain-Safe Trip
+              <h2 className="text-sm font-bold text-[var(--dg-text)] tracking-tight">
+                Plan your journey
               </h2>
-              <p className="text-[10px] text-[var(--dg-text-secondary)]">
-                Search landmarks or pick points directly on map
+              <p className="text-xs text-[var(--dg-text-secondary)] mt-0.5">
+                Compare street elevation, rain risk and choke points
               </p>
             </div>
           </div>
@@ -352,32 +352,34 @@ export function JourneyPlanner({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {/* Safest / Rain-Safer Card */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {/* Lower Hazard / Rain-Safer Card */}
             <div
               onClick={() => onSelectRouteDisplay("safest")}
-              className={`p-3 rounded-2xl cursor-pointer transition border relative ${
+              className={`p-3 rounded-xl cursor-pointer transition border relative flex flex-col justify-between ${
                 activeDisplayRoute === "safest"
-                  ? "bg-[var(--dg-surface-card)] border-cyan-400 shadow-[0_0_15px_rgba(32,214,194,0.15)] ring-1 ring-cyan-400"
-                  : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-card)]/60 border-[var(--dg-border-subtle)]"
+                  ? "bg-[var(--dg-surface-card)] border-emerald-500 shadow-sm ring-2 ring-emerald-500/20"
+                  : "bg-[var(--dg-surface-card)] hover:bg-[var(--dg-surface-hover)] border-[var(--dg-border)]"
               }`}
             >
               {routeResult.recommendation === "safest" && (
-                <span className="absolute -top-2 right-3 text-[9px] font-bold bg-[#20D6C2] text-slate-950 px-2 py-0.5 rounded-full shadow">
+                <span className="absolute -top-2.5 right-2.5 text-[9px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow-sm tracking-wide">
                   RECOMMENDED
                 </span>
               )}
-              <div className="flex items-center gap-1.5 text-[#20D6C2] text-xs font-bold mb-1">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Rain-Safer</span>
+              <div>
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-1">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>Lower Hazard</span>
+                </div>
+                <div className="text-lg font-bold text-[var(--dg-text)] tabular-nums">
+                  {formatDuration(routeResult.safest.duration_s)}
+                </div>
               </div>
-              <div className="text-lg font-black text-white">
-                {formatDuration(routeResult.safest.duration_s)}
-              </div>
-              <div className="text-[11px] text-slate-400 flex items-center justify-between mt-1">
+              <div className="text-xs text-[var(--dg-text-secondary)] flex items-center justify-between mt-2 pt-1.5 border-t border-[var(--dg-border-subtle)]">
                 <span>{formatDistance(routeResult.safest.distance_m)}</span>
-                <span className="font-semibold text-emerald-400">
-                  Risk {routeResult.safest.risk_score}/100
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  Risk {routeResult.safest.risk_score}
                 </span>
               </div>
             </div>
@@ -386,28 +388,30 @@ export function JourneyPlanner({
             {routeResult.balanced && (
               <div
                 onClick={() => onSelectRouteDisplay("balanced")}
-                className={`p-3 rounded-2xl cursor-pointer transition border relative ${
+                className={`p-3 rounded-xl cursor-pointer transition border relative flex flex-col justify-between ${
                   activeDisplayRoute === "balanced"
-                    ? "bg-[var(--dg-surface-card)] border-cyan-400 shadow-[0_0_15px_rgba(56,189,248,0.15)] ring-1 ring-cyan-400"
-                    : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-card)]/60 border-[var(--dg-border-subtle)]"
+                    ? "bg-[var(--dg-surface-card)] border-cyan-500 shadow-sm ring-2 ring-cyan-500/20"
+                    : "bg-[var(--dg-surface-card)] hover:bg-[var(--dg-surface-hover)] border-[var(--dg-border)]"
                 }`}
               >
                 {routeResult.recommendation === "balanced" && (
-                  <span className="absolute -top-2 right-3 text-[9px] font-bold bg-cyan-400 text-slate-950 px-2 py-0.5 rounded-full shadow">
-                    BALANCED
+                  <span className="absolute -top-2.5 right-2.5 text-[9px] font-bold bg-cyan-600 text-white px-2 py-0.5 rounded-full shadow-sm tracking-wide">
+                    RECOMMENDED
                   </span>
                 )}
-                <div className="flex items-center gap-1.5 text-cyan-400 text-xs font-bold mb-1">
-                  <Scale className="w-4 h-4" />
-                  <span>Balanced</span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 text-xs font-bold mb-1">
+                    <Scale className="w-4 h-4 shrink-0" />
+                    <span>Balanced</span>
+                  </div>
+                  <div className="text-lg font-bold text-[var(--dg-text)] tabular-nums">
+                    {formatDuration(routeResult.balanced.duration_s)}
+                  </div>
                 </div>
-                <div className="text-lg font-black text-white">
-                  {formatDuration(routeResult.balanced.duration_s)}
-                </div>
-                <div className="text-[11px] text-slate-400 flex items-center justify-between mt-1">
+                <div className="text-xs text-[var(--dg-text-secondary)] flex items-center justify-between mt-2 pt-1.5 border-t border-[var(--dg-border-subtle)]">
                   <span>{formatDistance(routeResult.balanced.distance_m)}</span>
-                  <span className="font-semibold text-cyan-400">
-                    Risk {routeResult.balanced.risk_score}/100
+                  <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                    Risk {routeResult.balanced.risk_score}
                   </span>
                 </div>
               </div>
@@ -416,23 +420,30 @@ export function JourneyPlanner({
             {/* Fastest Card */}
             <div
               onClick={() => onSelectRouteDisplay("fastest")}
-              className={`p-3 rounded-2xl cursor-pointer transition border relative ${
+              className={`p-3 rounded-xl cursor-pointer transition border relative flex flex-col justify-between ${
                 activeDisplayRoute === "fastest"
-                  ? "bg-[var(--dg-surface-card)] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-400"
-                  : "bg-[var(--dg-surface-elevated)] hover:bg-[var(--dg-surface-card)]/60 border-[var(--dg-border-subtle)]"
+                  ? "bg-[var(--dg-surface-card)] border-amber-500 shadow-sm ring-2 ring-amber-500/20"
+                  : "bg-[var(--dg-surface-card)] hover:bg-[var(--dg-surface-hover)] border-[var(--dg-border)]"
               }`}
             >
-              <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold mb-1">
-                <Zap className="w-4 h-4" />
-                <span>Fastest</span>
+              {routeResult.recommendation === "fastest" && (
+                <span className="absolute -top-2.5 right-2.5 text-[9px] font-bold bg-amber-600 text-white px-2 py-0.5 rounded-full shadow-sm tracking-wide">
+                  RECOMMENDED
+                </span>
+              )}
+              <div>
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs font-bold mb-1">
+                  <Zap className="w-4 h-4 shrink-0" />
+                  <span>Fastest</span>
+                </div>
+                <div className="text-lg font-bold text-[var(--dg-text)] tabular-nums">
+                  {formatDuration(routeResult.fastest.duration_s)}
+                </div>
               </div>
-              <div className="text-lg font-black text-white">
-                {formatDuration(routeResult.fastest.duration_s)}
-              </div>
-              <div className="text-[11px] text-slate-400 flex items-center justify-between mt-1">
+              <div className="text-xs text-[var(--dg-text-secondary)] flex items-center justify-between mt-2 pt-1.5 border-t border-[var(--dg-border-subtle)]">
                 <span>{formatDistance(routeResult.fastest.distance_m)}</span>
-                <span className="font-semibold text-amber-400">
-                  Risk {routeResult.fastest.risk_score}/100
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  Risk {routeResult.fastest.risk_score}
                 </span>
               </div>
             </div>
@@ -440,63 +451,65 @@ export function JourneyPlanner({
 
           {/* 3-Check Geospatial Evidence Summary */}
           {isDetailsExpanded && evidence && (
-            <div className="bg-[var(--dg-surface-card)]/95 border border-[var(--dg-border)] rounded-2xl p-3.5 shadow-xl space-y-2">
-              <div className="flex items-center justify-between border-b border-[var(--dg-border-subtle)] pb-2">
+            <div className="bg-[var(--dg-surface-card)] border border-[var(--dg-border)] rounded-xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-[var(--dg-border-subtle)] pb-2.5">
                 <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    3-Check Evidence Audit for this Route
+                  <ShieldCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <span className="text-xs font-bold text-[var(--dg-text)] uppercase tracking-wider">
+                    Route Evidence Checks
                   </span>
                 </div>
-                <button
-                  onClick={() => onOpenStatusDrawer && onOpenStatusDrawer()}
-                  className="text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold underline"
-                >
-                  Inspect API Sources
-                </button>
+                {onOpenStatusDrawer && (
+                  <button
+                    onClick={onOpenStatusDrawer}
+                    className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline font-semibold"
+                  >
+                    API Health & Sources
+                  </button>
+                )}
               </div>
 
               {/* Check 1: Forecast Precipitation */}
-              <div className="p-2 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border-subtle)]/80 space-y-1">
+              <div className="p-3 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border)] space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sky-400 flex items-center gap-1.5 text-[11px]">
-                    <CloudRain className="w-3.5 h-3.5" /> Check A: Current & Forecast Rain
+                  <span className="font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1.5 text-xs">
+                    <CloudRain className="w-4 h-4 shrink-0" /> Check 1: Forecast Rain
                   </span>
-                  <span className="text-[10px] text-slate-300 font-bold tabular-nums">
-                    {evidence.current_forecast_rain.rain_mm} mm / 3h
+                  <span className="text-xs text-[var(--dg-text)] font-bold tabular-nums">
+                    {evidence.current_forecast_rain.rain_mm} mm (3h window)
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-snug">
-                  Source: {evidence.current_forecast_rain.source} ({evidence.current_forecast_rain.resolution}). Regional forecast, not street water depth.
+                <p className="text-xs text-[var(--dg-text-secondary)] leading-relaxed pt-0.5">
+                  Source: {evidence.current_forecast_rain.source} ({evidence.current_forecast_rain.resolution}). Regional forecast estimate across municipal ward corridors, not physical road water depth.
                 </p>
               </div>
 
               {/* Check 2: Antecedent & Historical Incidents */}
-              <div className="p-2 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border-subtle)]/80 space-y-1">
+              <div className="p-3 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border)] space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-teal-400 flex items-center gap-1.5 text-[11px]">
-                    <History className="w-3.5 h-3.5" /> Check B: Previous Rain & Topography
+                  <span className="font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1.5 text-xs">
+                    <History className="w-4 h-4 shrink-0" /> Check 2: Antecedent Soil Saturation
                   </span>
-                  <span className="text-[10px] text-slate-300 font-bold tabular-nums">
+                  <span className="text-xs text-[var(--dg-text)] font-bold tabular-nums">
                     Past 24h: {evidence.antecedent_and_history.past_24h_mm} mm
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-snug">
+                <p className="text-xs text-[var(--dg-text-secondary)] leading-relaxed pt-0.5">
                   {evidence.antecedent_and_history.historical_note}
                 </p>
               </div>
 
               {/* Check 3: Free Traffic Policy */}
-              <div className="p-2 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border-subtle)]/80 space-y-1">
+              <div className="p-3 rounded-lg bg-[var(--dg-surface-elevated)] border border-[var(--dg-border)] space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-amber-400 flex items-center gap-1.5 text-[11px]">
-                    <Car className="w-3.5 h-3.5" /> Check C: Routing & Traffic Feasibility
+                  <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 text-xs">
+                    <Car className="w-4 h-4 shrink-0" /> Check 3: Traffic Feasibility
                   </span>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                    Baseline Speeds
+                  <span className="text-xs text-[var(--dg-text-muted)] font-semibold">
+                    OSRM Baselines
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-snug">
+                <p className="text-xs text-[var(--dg-text-secondary)] leading-relaxed pt-0.5">
                   {evidence.traffic_feasibility.note}
                 </p>
               </div>
@@ -507,12 +520,12 @@ export function JourneyPlanner({
           {isDetailsExpanded && activeRouteData && (
             <div className="space-y-2.5 pt-1">
               {/* Recommendation narrative */}
-              <div className="p-2.5 rounded-xl bg-[var(--dg-surface-input)] border border-[var(--dg-border-subtle)] text-xs space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-[#38BDF8]">
-                  <Info className="w-3.5 h-3.5" />
-                  <span>Why This Route is Suggested</span>
+              <div className="p-3.5 rounded-xl bg-[var(--dg-surface-card)] border border-[var(--dg-border)] space-y-1.5 shadow-sm">
+                <div className="flex items-center gap-2 font-bold text-cyan-600 dark:text-cyan-400 text-xs">
+                  <Info className="w-4 h-4 shrink-0" />
+                  <span>Why this route is suggested</span>
                 </div>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
+                <p className="text-xs text-[var(--dg-text-secondary)] leading-relaxed">
                   {routeResult.reason}
                 </p>
               </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAllReports, addReport, findNearestZone, updateReportStatus } from "@/lib/reports-store";
+import { getAllReportsAsync, addReport, findNearestZone, updateReportStatus, getRepository } from "@/lib/reports-store";
 import zonesData from "@/data/zones.seed.json";
 import { Zone, Report, BlockageType, ReportSeverity } from "@/lib/types";
 import { calculateZoneRisk } from "@/lib/risk";
@@ -31,16 +31,16 @@ const patchReportSchema = z.object({
 
 export async function GET() {
   try {
-    const reports = getAllReports();
+    const reports = await getAllReportsAsync();
     return NextResponse.json({
       data: reports,
     });
-  } catch {
+  } catch (err: any) {
     return NextResponse.json(
       {
         error: {
-          code: "INTERNAL_ERROR",
-          message: "Failed to retrieve blockage reports.",
+          code: "STORAGE_ERROR",
+          message: err?.message || "Failed to retrieve blockage reports from database.",
         },
       },
       { status: 500 }
@@ -50,6 +50,20 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const repo = getRepository();
+    // In strict production mode without database credentials, return HTTP 503
+    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE !== "true") {
+      return NextResponse.json(
+        {
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Persistent storage is unconfigured. Report cannot be durably recorded in production.",
+          },
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const parseResult = createReportSchema.safeParse(body);
 
@@ -98,37 +112,54 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     };
 
-    addReport(newReport);
+    const saved = await addReport(newReport);
 
     // Compute updated zone risk
     const weather = await getWeatherForecast();
-    const allReports = getAllReports();
+    const allReports = await getAllReportsAsync();
     const zoneReports = allReports.filter((r) => r.zone_id === matchedZone.id);
     const updatedZoneRisk = calculateZoneRisk(matchedZone, weather.rain_mm_next_3h, zoneReports);
 
-    return NextResponse.json({
-      data: {
-        report: newReport,
-        matched_zone_id: matchedZone.id,
-        distance_meters: Math.round(distanceMeters),
-        updated_zone_risk: updatedZoneRisk,
+    return NextResponse.json(
+      {
+        data: {
+          report: saved,
+          matched_zone_id: matchedZone.id,
+          distance_meters: Math.round(distanceMeters),
+          updated_zone_risk: updatedZoneRisk,
+        },
       },
-    }, { status: 201 });
-  } catch (err) {
+      { status: 201 }
+    );
+  } catch (err: any) {
+    const isUnavailable = err?.message?.includes("PERSISTENT_STORAGE_UNAVAILABLE");
     return NextResponse.json(
       {
         error: {
-          code: "INTERNAL_ERROR",
-          message: err instanceof Error ? err.message : "Failed to submit blockage report.",
+          code: isUnavailable ? "SERVICE_UNAVAILABLE" : "INTERNAL_ERROR",
+          message: err?.message || "Failed to submit blockage report.",
         },
       },
-      { status: 500 }
+      { status: isUnavailable ? 503 : 500 }
     );
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
+    const repo = getRepository();
+    if (process.env.NODE_ENV === "production" && !repo.isPersistent() && process.env.ALLOW_IN_MEMORY_STORAGE !== "true") {
+      return NextResponse.json(
+        {
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Persistent storage is unconfigured. Status change cannot be saved in production.",
+          },
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const parseResult = patchReportSchema.safeParse(body);
 
@@ -145,7 +176,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, status } = parseResult.data;
-    const updated = updateReportStatus(id, status);
+    const updated = await updateReportStatus(id, status);
 
     if (!updated) {
       return NextResponse.json(
@@ -162,15 +193,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       data: updated,
     });
-  } catch {
+  } catch (err: any) {
+    const isUnavailable = err?.message?.includes("PERSISTENT_STORAGE_UNAVAILABLE");
     return NextResponse.json(
       {
         error: {
-          code: "INTERNAL_ERROR",
-          message: "Failed to update report status.",
+          code: isUnavailable ? "SERVICE_UNAVAILABLE" : "INTERNAL_ERROR",
+          message: err?.message || "Failed to update report status.",
         },
       },
-      { status: 500 }
+      { status: isUnavailable ? 503 : 500 }
     );
   }
 }

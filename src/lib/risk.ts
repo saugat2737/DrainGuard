@@ -7,7 +7,7 @@ import {
 } from "./types";
 
 /**
- * Weights per docs/05_RISK_ENGINE.md:
+ * Weights per docs/RISK_ENGINE.md:
  * score = 100 * ( 0.40*rain + 0.25*blockage + 0.20*history + 0.15*elevation )
  */
 export const RISK_WEIGHTS = {
@@ -18,7 +18,23 @@ export const RISK_WEIGHTS = {
 } as const;
 
 /**
- * Risk level thresholds per docs/05_RISK_ENGINE.md:
+ * Tunable constants (previously inline magic numbers; values unchanged).
+ *
+ * RAIN_CAP_MM: the rain factor saturates here. The UI slider goes to 120 mm,
+ *   but any rainfall above this value produces the same score.
+ * RAIN_GATE_MM / RAIN_GATE_MULTIPLIER: below RAIN_GATE_MM the whole score is
+ *   multiplied by RAIN_GATE_MULTIPLIER. This is a hard step (not a ramp), so
+ *   the score jumps when rainfall crosses RAIN_GATE_MM.
+ * BLOCKAGE_SATURATION: weighted report severity at which the blockage factor
+ *   reaches 1.0.
+ */
+export const RAIN_CAP_MM = 60;
+export const RAIN_GATE_MM = 5;
+export const RAIN_GATE_MULTIPLIER = 0.3;
+export const BLOCKAGE_SATURATION = 6;
+
+/**
+ * Risk level thresholds per docs/RISK_ENGINE.md:
  * 0–29: low
  * 30–59: medium
  * 60–79: high
@@ -32,18 +48,21 @@ export function getRiskLevel(score: number): RiskLevel {
 }
 
 /**
- * Normalize rainfall input (0..120 mm) -> (0..1)
- * rain = min(rain_mm / 60, 1)
+ * Normalize rainfall (mm) -> (0..1)
+ * rain = min(rain_mm / RAIN_CAP_MM, 1)
+ * Note: saturates at RAIN_CAP_MM (60 mm), below the 120 mm slider maximum.
  */
 export function calculateRainFactor(rainMm: number): number {
   const safeRain = Math.max(0, rainMm);
-  return Math.min(safeRain / 60, 1);
+  return Math.min(safeRain / RAIN_CAP_MM, 1);
 }
 
 /**
  * Normalize blockage severity:
- * min(sum(severity of open reports in zone) / 6, 1)
- * cleared reports count 0, assigned count half (severity * 0.5)
+ * min(sum(severity * status weight) / BLOCKAGE_SATURATION, 1)
+ * open reports count fully (1.0), assigned count half (0.5), cleared count 0.
+ * Known limitation: reports do not decay with age; an open report counts
+ * until its status is changed.
  */
 export function calculateBlockageFactor(reports: Report[]): {
   factor: number;
@@ -66,7 +85,8 @@ export function calculateBlockageFactor(reports: Report[]): {
     }
   }
 
-  const factor = Math.min(effectiveSum / 6, 1);
+  const factor = Math.min(effectiveSum / BLOCKAGE_SATURATION, 1);
+
   return {
     factor,
     effectiveReportsCount: activeCount,
@@ -106,8 +126,11 @@ function getElevationDescription(factor: number): string {
 /**
  * Pure risk engine computation
  * @param zone Zone data
- * @param rainMm Expected rainfall over next 3h (0-120)
- * @param zoneReports Open/active reports linked to this zone
+ * @param rainMm Rainfall input in mm (UI range 0-120; the rain factor
+ *   saturates at RAIN_CAP_MM). The forecast window used by /api/weather is
+ *   defined in that handler, not here.
+ * @param zoneReports Reports linked to this zone (open, assigned or cleared;
+ *   cleared reports contribute nothing)
  */
 export function calculateZoneRisk(
   zone: Zone,
@@ -118,6 +141,7 @@ export function calculateZoneRisk(
   const rainNorm = calculateRainFactor(safeRain);
   const { factor: blockageNorm, effectiveReportsCount, blockageTypes } =
     calculateBlockageFactor(zoneReports);
+
   const historyNorm = Math.min(Math.max(0, zone.history_factor), 1);
   const elevationNorm = Math.min(Math.max(0, zone.elevation_factor), 1);
 
@@ -130,9 +154,9 @@ export function calculateZoneRisk(
   const rawScore =
     rainRawContrib + blockageRawContrib + historyRawContrib + elevationRawContrib;
 
-  // Rain gating: if rain_mm < 5, multiply the score by 0.3
-  const isGated = safeRain < 5;
-  const gateMultiplier = isGated ? 0.3 : 1.0;
+  // Rain gating: below RAIN_GATE_MM, multiply the score by RAIN_GATE_MULTIPLIER
+  const isGated = safeRain < RAIN_GATE_MM;
+  const gateMultiplier = isGated ? RAIN_GATE_MULTIPLIER : 1.0;
 
   const finalScore = Math.min(100, Math.max(0, Math.round(rawScore * gateMultiplier)));
   const level = getRiskLevel(finalScore);
@@ -183,7 +207,6 @@ export function calculateZoneRisk(
 
   const levelDisplay = level.charAt(0).toUpperCase() + level.slice(1);
   let explanationSentence: string;
-
   if (qualifyingFactors.length === 0 || finalScore === 0) {
     explanationSentence = `${levelDisplay} risk (${finalScore}): minimal flood risk under current dry conditions.`;
   } else {

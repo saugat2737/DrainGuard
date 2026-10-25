@@ -111,3 +111,47 @@ html.light {
   - `eslint .` exited cleanly with **0 warnings**.
 - **Production Next.js Build (`npm run build`)**:
   - Optimized static/dynamic build generated in 18s with 0 bundle warnings.
+
+
+---
+
+## 6. UI Clarity & Desktop Sidebar Layout Overhaul Pass
+
+### 6.1 Defect Inventory & Root Causes
+
+During visual review of the desktop journey planning experience, three major usability and structural defects were identified:
+1. **Translucent Floating Overlays Causing Visual Interference**:
+   - *Cause*: The planning container used `backdrop-blur-md` and partial opacity overlays (`rgba(20, 34, 53, 0.95)` and `rgba(255, 255, 255, 0.96)`) positioned absolutely (`absolute top-4 left-4 z-[450]`) on top of Leaflet map tiles. High-contrast map streets and label contours showed through card backgrounds, creating optical clutter and severe text legibility reduction.
+2. **Top-of-Panel Clipping & Inconsistent Viewport Boundaries**:
+   - *Cause*: A nested floating layout with `max-h-[calc(100vh-6rem)]` inside an absolute viewport container without dedicated docking. The top inputs and header controls competed for viewport space, causing the upper inputs of the journey planner to be partially clipped or hidden behind the application navbar on laptops and smaller desktop screens.
+3. **Information Density & Route Card Confusion**:
+   - *Cause*: Route options (Fastest, Lower Hazard, Balanced) used saturated neon glow rings and dark text styles with identical visual weight. Secondary disclosures and evidence checks lacked distinct hierarchy.
+
+### 6.2 Structural Layout Transformation
+
+1. **Two-Column Dedicated Layout on Desktop**:
+   - Converted the desktop layout in `src/app/page.tsx` from an absolute map-overlay model to a crisp two-column flex model:
+     - **Left Planning Sidebar**: Width `420px` (responsive up to `440px` on xl screens), 100% viewport height below navbar, solid non-translucent surface (`--dg-sidebar-bg`), crisp `1px` boundary border (`--dg-border`), independent vertical scrolling (`overflow-y-auto`), and sticky tab header.
+     - **Interactive Map Area**: Fills the entire remaining viewport width (`flex-1`) seamlessly without extending underneath the sidebar.
+     - **Map Size Invalidation**: Added `MapResizeInvalidator` in `src/components/MapView.tsx` triggering Leaflet `map.invalidateSize()` upon mount and window resize events, ensuring zero tile distortion or coordinate offsets.
+2. **Solid Color & Typography Hierarchy**:
+   - **Solid Surfaces**: Refined `--dg-surface-card`, `--dg-surface-elevated`, and `--dg-sidebar-bg` in `globals.css` to solid hex values (`#111C2E` and `#0E1726` in dark mode; `#FFFFFF` and `#F8FAFC` in light mode), completely eliminating background map bleed-through.
+   - **Clear Route Badges**: Renamed and re-styled cards with explicit status labels: **"Lower Hazard"** (`#16A34A` / `#22C55E`), **"Balanced"** (`#0284C7` / `#38BDF8`), and **"Fastest"** (`#D97706` / `#F59E0B`). Active cards feature unmistakable `ring-2` focus borders with high-contrast duration numbers.
+   - **3-Check Evidence Panels**: Reorganized into solid, clearly delineated cards with bold headings, prominent metrics (e.g. `25 mm (3h window)`, `Past 24h: 12 mm`), and normal body-size explanatory copy.
+   - **Preserved Mobile Bottom Sheet**: Maintained the Namma Yatri-style bottom sheet for mobile viewports ($< 1024\text{px}$), ensuring phone commuters retain one-thumb drag and expandable height controls.
+
+### 6.3 Tested Viewports & Visual Outcomes
+
+| Viewport | Dimensions | Surface Treatment | Outcome Verified |
+| :--- | :--- | :--- | :--- |
+| **Large Desktop** | $1440 \times 900$ | Two-column solid sidebar ($440\text{px}$) + Map | Complete trip search visible below header; zero clipping; text passes WCAG AA contrast against solid surfaces. |
+| **Standard Laptop** | $1280 \times 800$ | Two-column solid sidebar ($420\text{px}$) + Map | Smooth independent sidebar scrolling; map controls sit cleanly in the top-right of the map container without overlapping inputs. |
+| **Mobile Standard** | $390 \times 844$ | Expandable bottom sheet ($54\text{vh}$ / $85\text{vh}$) | Origin/destination inputs easily accessible; drag handle and sheet actions respond cleanly; map remains interactive. |
+| **Narrow Mobile** | $360 \times 780$ | Compact bottom sheet | Zero horizontal page overflow; buttons and chips wrap cleanly. |
+
+### 6.4 Verification Status
+
+- **Unit & Integration Test Suite (`npm test`)**: **15 test files passed** (88 tests passed, 2 skipped, 0 failures).
+- **TypeScript Strict Check (`npm run typecheck`)**: **0 errors**.
+- **ESLint (`npm run lint`)**: **0 warnings**.
+- **Production Build (`npm run build`)**: Clean optimized compilation with zero warnings.

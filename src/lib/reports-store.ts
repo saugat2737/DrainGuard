@@ -1,52 +1,83 @@
 import { Report, Zone } from "./types";
 import seedReportsData from "@/data/reports.seed.json";
 import * as turf from "@turf/turf";
+import { getReportsRepository, IReportsRepository, InMemoryReportsRepository } from "./reports-repository";
 
 /**
- * Production-Hardened Citizen Report Store
- *
- * PRODUCTION DATA POLICY:
- * In live production environments (`ENABLE_DEMO_REPORTS !== "true"` and `NODE_ENV === "production"`),
- * the store initializes completely clean with 0 synthetic seed reports.
- * Simulated or demonstration reports are strictly opt-in development fixtures.
+ * Backward-Compatible Reports Store Adapter
+ * Provides async repository access while preserving pure spatial helpers (findNearestZone).
  */
 
-function isDemoModeEnabled(): boolean {
-  // In production, demo reports are disabled by default
-  if (process.env.NODE_ENV === "production") {
-    return process.env.ENABLE_DEMO_REPORTS === "true";
+export function getRepository(): IReportsRepository {
+  return getReportsRepository();
+}
+
+/**
+ * Synchronous in-memory helper for test reset
+ */
+export function resetReportsStore(includeDemoSeeds = true): void {
+  const repo = getReportsRepository();
+  if (repo instanceof InMemoryReportsRepository) {
+    repo.reset(includeDemoSeeds);
+  } else if ((globalThis as any).__DRAINGUARD_MEM_REPO__) {
+    ((globalThis as any).__DRAINGUARD_MEM_REPO__ as InMemoryReportsRepository).reset(includeDemoSeeds);
   }
-  // In test and development environments, demo seed fixtures are enabled by default for QA continuity
-  return process.env.DISABLE_DEMO_REPORTS !== "true";
-}
-
-let runtimeReports: Report[] = isDemoModeEnabled()
-  ? [...(seedReportsData.reports as unknown as Report[])]
-  : [];
-
-/**
- * Reset store (supports explicit fixture loading for test suites)
- */
-export function resetReportsStore(includeDemoSeeds = isDemoModeEnabled()): void {
-  runtimeReports = includeDemoSeeds
-    ? [...(seedReportsData.reports as unknown as Report[])]
-    : [];
 }
 
 /**
- * Load seed demo fixtures explicitly (for QA test suites)
+ * Synchronous in-memory helper for test suites loading seeds
  */
 export function loadSeedReports(): void {
-  runtimeReports = [...(seedReportsData.reports as unknown as Report[])];
+  resetReportsStore(true);
 }
 
 /**
  * Return all current reports (newest first)
  */
+export async function getAllReportsAsync(): Promise<Report[]> {
+  const repo = getReportsRepository();
+  return repo.getAllReports();
+}
+
+/**
+ * Synchronous compatibility wrapper
+ */
 export function getAllReports(): Report[] {
-  return [...runtimeReports].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  const repo = getReportsRepository();
+  if (repo instanceof InMemoryReportsRepository) {
+    return repo.getAllReportsSync();
+  }
+  return [];
+}
+
+/**
+ * Add a new validated citizen report
+ */
+export async function addReport(report: Report): Promise<Report> {
+  const repo = getReportsRepository();
+  if (repo instanceof InMemoryReportsRepository) {
+    return repo.addReportSync(report);
+  }
+  return repo.addReport(report);
+}
+
+/**
+ * Retrieve report by ID
+ */
+export async function getReportById(id: string): Promise<Report | null> {
+  const repo = getReportsRepository();
+  return repo.getReportById(id);
+}
+
+/**
+ * Update report status (e.g. municipal dispatch: open -> assigned -> cleared)
+ */
+export async function updateReportStatus(
+  id: string,
+  newStatus: Report["status"]
+): Promise<Report | null> {
+  const repo = getReportsRepository();
+  return repo.updateReportStatus(id, newStatus);
 }
 
 /**
@@ -67,11 +98,9 @@ export function findNearestZone(
     let distM = Infinity;
     if (zone.geometry.type === "Polygon") {
       const poly = turf.polygon(zone.geometry.coordinates);
-      // If point is strictly inside polygon, distance is 0
       if (turf.booleanPointInPolygon(pt, poly)) {
         distM = 0;
       } else {
-        // Distance to polygon boundary
         const boundary = turf.polygonToLine(poly);
         if (boundary && "type" in boundary && boundary.type === "Feature") {
           distM = turf.pointToLineDistance(pt, boundary as any, { units: "meters" });
@@ -93,31 +122,4 @@ export function findNearestZone(
   }
 
   return { zone: null, distanceMeters: minDistanceMeters };
-}
-
-/**
- * Add a new validated citizen report into the shared runtime store
- */
-export function addReport(report: Report): void {
-  runtimeReports.push(report);
-}
-
-/**
- * Retrieve report by ID
- */
-export function getReportById(id: string): Report | null {
-  return runtimeReports.find((r) => r.id === id) || null;
-}
-
-/**
- * Update report status (e.g. municipal dispatch: open -> assigned -> in_progress -> resolved)
- */
-export function updateReportStatus(
-  id: string,
-  newStatus: Report["status"]
-): Report | null {
-  const report = runtimeReports.find((r) => r.id === id);
-  if (!report) return null;
-  report.status = newStatus;
-  return report;
 }

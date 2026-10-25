@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import zonesData from "@/data/zones.seed.json";
-import { getAllReports } from "@/lib/reports-store";
+import { getAllReportsAsync } from "@/lib/reports-store";
 import { Zone, Report, ZoneRisk } from "@/lib/types";
 import { calculateZoneRisk } from "@/lib/risk";
 import { getWeatherForecast } from "@/lib/weather";
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
 
     const zones = zonesData.zones as unknown as Zone[];
-    const reports = getAllReports();
+    const reports = await getAllReportsAsync();
 
     // Group reports by zone_id
     const reportsByZone = new Map<string, Report[]>();

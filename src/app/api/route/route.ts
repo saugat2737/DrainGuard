@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import zonesData from "@/data/zones.seed.json";
-import { getAllReports } from "@/lib/reports-store";
+import { getAllReportsAsync } from "@/lib/reports-store";
 import { Zone } from "@/lib/types";
 import { calculateZoneRisk } from "@/lib/risk";
 import { getWeatherForecast } from "@/lib/weather";
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Prepare current zones with risk scores
     const zones = zonesData.zones as unknown as Zone[];
-    const reports = getAllReports();
+    const reports = await getAllReportsAsync();
     const reportsByZone = new Map();
     for (const report of reports) {
       if (report.zone_id) {
