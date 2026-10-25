@@ -89,6 +89,21 @@ export class SupabaseReportsRepository implements IReportsRepository {
         persistSession: false,
         autoRefreshToken: false,
       },
+      realtime: {
+        // DrainGuard only uses standard REST queries on PostgreSQL.
+        // Providing dummy no-op transport avoids Node.js native WebSocket runtime errors in Node < 22.
+        transport: class DummyWebSocket {
+          static readonly CONNECTING = 0;
+          static readonly OPEN = 1;
+          static readonly CLOSING = 2;
+          static readonly CLOSED = 3;
+          readyState = 3;
+          close() {}
+          send() {}
+          addEventListener() {}
+          removeEventListener() {}
+        } as any,
+      },
     });
   }
 
